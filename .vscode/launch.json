@@ -1,0 +1,31 @@
+{
+    // IntelliSense を使用して利用可能な属性を学べます。
+    // 既存の属性の説明をホバーして表示します。
+    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Launch DaifugoApp",
+            "request": "launch",
+            "mainClass": "DaifugoApp",
+            "projectName": "Daifugo_237ad025",
+            "vmArgs": "--module-path /Applications/ProgramFiles/javafx-sdk-18/lib --add-modules javafx.controls,javafx.fxml",
+            "args": "localhost 8765"
+        },
+        {
+            "type": "java",
+            "name": "Launch Server",
+            "request": "launch",
+            "mainClass": "Server",
+            "projectName": "Daifugo_237ad025",
+            "args": "localhost 8765"
+        }
+    ]
+}
