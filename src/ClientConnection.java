@@ -30,4 +30,20 @@ public class ClientConnection extends Connection {
     public void RequestStartGame(String roomName, String hostName) {
         Send(STARTGAME, roomName, hostName);
     }
+
+    public void RequestReady(String roomName, String guestName) {
+        Send(READY, roomName, guestName);
+    }
+
+    public void RequestUnready(String roomName, String guestName) {
+        Send(READY, roomName, guestName);
+    }
+
+    public void RequestPutCard(String roomName, String playerName, String cards) {
+        Send(PUT, roomName, playerName, cards);
+    }
+
+    public void RequestPass(String roomName, String playerName) {
+        Send(PASS, roomName, playerName);
+    }
 }

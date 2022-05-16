@@ -8,10 +8,12 @@ public class Lobby {
     private String hostName;
     private String password;
     private HashMap<String, SocketChannel> playerList;
-    private ArrayList<String> readyList;
+    private Party readyList;
 
     private int maxPlayerCount;
     private int canStartPlayerCount;
+
+    private Game game;
 
     Lobby(String lobbyName, String hostName) {
         this.lobbyName = lobbyName;
@@ -27,6 +29,11 @@ public class Lobby {
         password = UUID.randomUUID().toString();
         this.maxPlayerCount = maxPlayerCount;
         this.canStartPlayerCount = canStartPlayerCount;
+    }
+
+    public void StartGame() {
+        Game game = new Game();
+        game.Start(readyList);
     }
 
     public String GetLobbyName() {
@@ -61,11 +68,23 @@ public class Lobby {
         playerList.remove(name);
     }
 
-    public void ReadyPlayer(String name) {
-        readyList.add(name);
+    public void AddReadyPlayer(Participant p) {
+        readyList.AddParticipant(p);
+    }
+
+    public void RemoveReadyPlayer(String name) {
+        readyList.RemoveParticipant(name);
     }
 
     public boolean CanStartGame() {
-        return readyList.size() >= canStartPlayerCount;
+        return readyList.GetAllParticipants().size() >= canStartPlayerCount;
+    }
+
+    public ArrayList<SocketChannel> GetAllSocket() {
+        return new ArrayList<SocketChannel>(playerList.values());
+    }
+
+    public Game GetGame() {
+        return game;
     }
 }

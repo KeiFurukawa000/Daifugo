@@ -1,9 +1,11 @@
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
@@ -89,13 +91,39 @@ public class Server implements IServer {
 
     @Override
     public void StartGame(String lobbyName) {
-        
+        Lobby lobby = lobbyList.GetLobby(lobbyName);
+        lobby.StartGame();
     }
 
     @Override
-    public SocketChannel[] GetAllSocketInLobby(String lobbyName) {
+    public ArrayList<SocketChannel> GetAllSocketInLobby(String lobbyName) {
+        Lobby lobby = lobbyList.GetLobby(lobbyName);
+        return lobby.GetAllSocket();
+    }
+
+    @Override
+    public void ReadyPlayer(String lobbyName, String playerName, SocketChannel sc) {
+        Lobby lobby = lobbyList.GetLobby(lobbyName);
+        lobby.AddReadyPlayer(new Participant(playerName, sc));
+    }
+
+    @Override
+    public void UnreadyPlayer(String lobbyName, String playerName) {
+        Lobby lobby = lobbyList.GetLobby(lobbyName);
+        lobby.RemoveReadyPlayer(playerName);
+    }
+
+    @Override
+    public void Put(String lobbyName, String playerName, String cards) {
+        Lobby lobby = lobbyList.GetLobby(lobbyName);
+        Game game = lobby.GetGame();
+        game.Put(playerName, cards);
+    }
+
+    @Override
+    public void Pass(String lobbyName, String playerName) {
         // TODO Auto-generated method stub
-        return null;
+        
     }   
 }
 
