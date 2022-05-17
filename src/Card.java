@@ -1,38 +1,56 @@
+import java.util.Collections;
+import java.util.Stack;
+
+/** カードの山クラス */
+class CardBlock {
+    private Stack<Card> block;
+
+    CardBlock() {
+        block = new Stack<>(){{
+            for (int i = 1; i <= 13; i++) push(new Card(Suit.Heart, i));
+            for (int i = 1; i <= 13; i++) push(new Card(Suit.Diamond, i));
+            for (int i = 1; i <= 13; i++) push(new Card(Suit.Spade, i));
+            for (int i = 1; i <= 13; i++) push(new Card(Suit.Clover, i));
+        }};
+    }
+
+    public Card Pop() {
+        return block.pop();
+    }
+
+    public void Put(Card card) {
+        block.push(card);
+    }
+
+    public void Shuffle() {
+        Collections.shuffle(block);
+    }
+}
+
+/** カードクラス */
 public class Card {
-
-    public static final String HEART = "HEART";
-    public static final String DIAMOND = "DIAMOND";
-    public static final String SPADE = "SPADE";
-    public static final String CLOVER = "CLOVER";
-    public static final String JOKER = "JOKER";
-
-    public static final int _A = 1;
-    public static final int _2 = 2;
-    public static final int _3 = 3;
-    public static final int _4 = 4;
-    public static final int _5 = 5;
-    public static final int _6 = 6;
-    public static final int _7 = 7;
-    public static final int _8 = 8;
-    public static final int _9 = 9;
-    public static final int _10 = 10;
-    public static final int _J= 11;
-    public static final int _Q = 12;
-    public static final int _K = 13;
-
-    private String icon;
+    private Suit suit;
     private int number;
 
-    Card(String icon, int number) {
-        this.icon = icon;
+    Card(Suit suit, int number) {
+        this.suit = suit;
         this.number = number;
     }
 
-    public String GetIcon() {
-        return icon;
+    public Suit GetSuit() {
+        return suit;
     }
 
     public int GetNumber() {
         return number;
     }
+}
+
+/** トランプの絵柄 */
+enum Suit {
+    Heart,
+    Diamond,
+    Spade,
+    Clover,
+    Joker
 }
