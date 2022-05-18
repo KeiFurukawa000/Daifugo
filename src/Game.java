@@ -1,78 +1,119 @@
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedList;
+import java.util.Timer;
+import java.util.TimerTask;
 
-public class Game {
-    private Players playerList;
+public class Game implements IGame{
+    private Party party;
     private CardBlock cardBlock;
+    private int passCount;
+    private Timer timer;
 
-    private int endedGameCount;
-
-    public void Start(Party readyListParty) {
-
-        cardBlock = new CardBlock();
-
-        Iterator<Participant> ite = readyListParty.GetAllParticipants().iterator();
-        while (ite.hasNext()) {
-            Participant p = ite.next(); ite.remove();
-            Hand hand = cardBlock.Deal();
-            Player player = new Player(p.GetName(), hand);
-            playerList.AddPlayer(player);;
-        }
-        ChangeSeat();
-    }
-
-    private void ChangeSeat() {
-        // 最初のゲーム
-        if (endedGameCount == 0) {
-            Collections.shuffle(playerList.GetPlayers());
-            Iterator<Player> ite = playerList.GetPlayers().iterator();
-            while (ite.hasNext()) {
-                Player player = ite.next(); ite.remove();
-                if (player.IsMaster()) {
-                    playerList.RemovePlayer(player);
-                    playerList.AddPlayer(0, player);
-                }
-            }
-        }
+    Game(Party party) {
+        this.party = party;
     }
 
     public void Turn() {
-        Iterator<Player> ite = playerList.GetPlayers().iterator();
-        while (ite.hasNext()) {
-            Player player = ite.next(); ite.remove();
+        while (true) {
+            Player player = party.GetHead();
+            Task task = new Task(player);
+            timer = new Timer();
+            timer.schedule(task, 60000);
 
-            // カードがない場合、あがり
-            if (player.IsHandEmpty()) {
+            player.StartTurn();
 
-                continue;
-            }
+            party.Rotate();
         }
     }
 
-    public ArrayList<Card> GetCards(String str) {
-        String[] cmd = str.split(" ");
-        ArrayList<Card> cards = new ArrayList<>();
-        for (int i = 0; i < cmd.length; i++) {
-            String[] set = cmd[i].split("/");
-            String icon = set[0];
-            int number = Integer.parseInt(set[1]);
-            cards.add(new Card(icon, number));
-        }
-        return cards;
+    public void AddPassCount() {
+        passCount++;
     }
 
-    public void Put(String name, String cardsStr) {
-        Player player = playerList.GetPlayer(name);
-        ArrayList<Card> cards = GetCards(cardsStr);
-        player.Put(cards.toArray(new Card[cards.size()]));
+    public void ResetPassCount() {
+        passCount = 0;
     }
 
-    public void Pass(Player player) {
+    public void ResetTimer() {
+        timer.cancel();
+    }
+}
 
+class Task extends TimerTask {
+    private Player player;
+
+    Task(Player player) {
+        this.player = player;
     }
 
-    public void Revolution(Player player, int...cards) {
+    @Override
+    public void run() {
+        player.Pass();
+    }
+}
 
+interface IGame {
+    void AddPassCount();
+    void ResetPassCount();
+    void ResetTimer();
+}
+
+class Party {
+    private LinkedList<Player> queue;
+
+    Party() {
+        queue = new LinkedList<>();
+    }
+
+    public void Add(Player player) {
+        queue.addLast(player);
+    }
+
+    public void Remove(Player player) {
+        queue.remove(player);
+    }
+
+    public void Rotate() {
+        Player p = queue.removeFirst();
+        queue.addLast(p);
+    }
+
+    public Player GetHead() {
+        return queue.getFirst();
+    }
+
+    public Player[] GetTail() {
+        LinkedList<Player> clone = new LinkedList<Player>(queue);
+        clone.removeFirst();
+        return clone.toArray(new Player[clone.size()]);
+    }
+}
+
+class Player {
+    private String name;
+    private IPlayerConnectable ipc;
+    private IGame callback;
+
+    Player(String name, SocketChannel sc, IGame callback) {
+        this.name = name;
+        this.callback = callback;
+    }
+
+    public String GetName() {
+        return name;
+    }
+
+    public void StartTurn() {
+    
+    }
+
+    public void Put(Card[] cards) {
+        
+    }
+
+    public void Pass() {
+        callback.ResetTimer();
+        
     }
 }

@@ -1,90 +1,133 @@
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 
+class LobbyList {
+    private HashMap<String, Lobby> lobbyList;
+    private int maxCount;
+
+    LobbyList(int maxCount) {
+        this.maxCount = maxCount;
+    }
+
+    public void AddLobby(Lobby lobby) {
+        lobbyList.put(lobby.GetLobbyName(), lobby);
+    }
+
+    public void RemoveLobby(String lobbyName) {
+        lobbyList.remove(lobbyName);
+    }
+
+    public Lobby GetLobby(String lobbyName) {
+        return lobbyList.get(lobbyName);
+    }
+
+    public int GetMaxCount() {
+        return maxCount;
+    }
+
+    public int GetCurrentCount() {
+        return lobbyList.size();
+    }
+
+    public boolean Contains(String lobbyName) {
+        return lobbyList.containsKey(lobbyName);
+    }
+}
+
 public class Lobby {
-    private String lobbyName;
-    private String hostName;
+    private String name;
     private String password;
-    private HashMap<String, SocketChannel> playerList;
-    private Party readyList;
-
-    private int maxPlayerCount;
-    private int canStartPlayerCount;
-
+    private Member host;
+    private HashMap<String, Member> list;
     private Game game;
 
-    Lobby(String lobbyName, String hostName) {
-        this.lobbyName = lobbyName;
-        this.hostName = hostName;
-        password = UUID.randomUUID().toString();
-        maxPlayerCount = 4;
-        canStartPlayerCount = 2;
+    private final int maxMemberCount = 4;
+
+    Lobby(String lobbyName, String hostName, SocketChannel sc) {
+        this.name = lobbyName;
+        this.host = new Member(name, sc);
+        this.password = CreatePassword();
     }
 
-    Lobby(String lobbyName, String hostName, int maxPlayerCount, int canStartPlayerCount) {
-        this.lobbyName = lobbyName;
-        this.hostName = hostName;
-        password = UUID.randomUUID().toString();
-        this.maxPlayerCount = maxPlayerCount;
-        this.canStartPlayerCount = canStartPlayerCount;
-    }
-
-    public void StartGame() {
-        Game game = new Game();
-        game.Start(readyList);
+    private String CreatePassword() {
+        return UUID.randomUUID().toString();
     }
 
     public String GetLobbyName() {
-        return lobbyName;
+        return name;
     }
 
-    public String GetHostName() {
-        return hostName;
+    public boolean CanJoin(String name, String password) {
+        return list.size() < maxMemberCount && !list.containsKey(name) && this.password.equals(password);
     }
 
-    public String GetPassword() {
-        return password; 
+    public void Add(String name, SocketChannel sc) {
+        Member newMember = new Member(name, sc);
+        list.put(name, newMember);
     }
 
-    public boolean ContainsPlayer(String playerName) {
-        return playerList.containsKey(playerName);
+    public void Remove(String name) {
+        Member member = list.remove(name);
+        member.Leave();
     }
 
-    public SocketChannel GetSocket(String playerName) {
-        return playerList.get(playerName);
+    public Member GetMember(String name) {
+        return list.get(name);
     }
 
-    public boolean CanAddPlayer(String password, String name) {
-        return this.password.equals(password) && !playerList.containsKey(name) && playerList.size() < maxPlayerCount;
+    public Member[] GetMemberList() {
+        return list.values().toArray(new Member[list.size()]);
     }
 
-    public void AddPlayer(String name, SocketChannel sc) {
-        playerList.put(name, sc);
+    public Member GetHost() {
+        return host;
     }
 
-    public void RemovePlayer(String name) {
-        playerList.remove(name);
+    public boolean IsAllReady() {
+        Member[] all = list.values().toArray(new Member[list.size()]);
+        for (int i = 0; i < all.length; i++) if (!all[i].GetReady()) return false;
+        return true;
     }
 
-    public void AddReadyPlayer(Participant p) {
-        readyList.AddParticipant(p);
+    public void StartGame() {
+        
+    }
+}
+
+class Member {
+    private String name;
+    private SocketChannel sc;
+    private boolean isReady;
+
+    Member(String name, SocketChannel sc) {
+        this.name = name;
+        this.sc = sc;
     }
 
-    public void RemoveReadyPlayer(String name) {
-        readyList.RemoveParticipant(name);
+    public void Leave() {
+        
     }
 
-    public boolean CanStartGame() {
-        return readyList.GetAllParticipants().size() >= canStartPlayerCount;
+    public void Ready() {
+        isReady = true;
+        
     }
 
-    public ArrayList<SocketChannel> GetAllSocket() {
-        return new ArrayList<SocketChannel>(playerList.values());
+    public void Unready() {
+        isReady = false;
+        
     }
 
-    public Game GetGame() {
-        return game;
+    public boolean GetReady() {
+        return isReady;
+    }
+
+    public String GetName() {
+        return name;
+    }
+
+    public SocketChannel GetSocket() {
+        return sc;
     }
 }

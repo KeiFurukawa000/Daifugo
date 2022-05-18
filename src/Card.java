@@ -27,6 +27,11 @@ class CardBlock {
     }
 }
 
+/** 手札クラス */
+class Hand {
+
+}
+
 /** カードクラス */
 public class Card {
     private Suit suit;
