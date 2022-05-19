@@ -1,5 +1,9 @@
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Stack;
+
+import javafx.beans.property.ReadOnlyStringPropertyBase;
 
 /** カードの山クラス */
 class CardBlock {
@@ -29,7 +33,29 @@ class CardBlock {
 
 /** 手札クラス */
 class Hand {
+    private ArrayList<Card> list;
 
+    Hand(Card[] cards) {
+        list = new ArrayList<Card>(Arrays.asList(cards));
+    }
+
+    public void Remove(Suit suit, int num) {
+        list.remove(GetCard(suit, num));
+    }
+
+    private Card GetCard(Suit suit, int num) {
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).GetSuit().equals(suit) && list.get(i).GetNumber() == num) return list.get(i);
+        }
+        return null;
+    }
+
+    public boolean Contains(Suit suit, int num) {
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).GetSuit().equals(suit) && list.get(i).GetNumber() == num) return true;
+        }
+        return false;
+    }
 }
 
 /** カードクラス */

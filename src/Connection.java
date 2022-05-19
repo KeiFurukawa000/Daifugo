@@ -9,6 +9,11 @@ public class Connection {
     protected final String OK = "OK";
     protected final String FAULT = "FAULT";
 
+    protected final String MEMBER = "MEMBER";
+    protected final String PLAYER = "PLAYER";
+
+    protected final String CREATEACCOUNT = "CREATEACCOUNT";
+    protected final String DELETEACCOUNT = "DELETEACCOUNT";
     protected final String CREATELOBBY = "CREATELOBBY";
     protected final String JOINLOBBY = "JOINLOBBY";
     protected final String LEAVELOBBY = "LEAVELOBBY";
@@ -59,9 +64,49 @@ public class Connection {
         String num = Integer.toString(card.GetNumber());
         return suit + "/" + num;
     }
+
+    protected Card[] StrToCard(String[] str) {
+        Card[] cards = new Card[str.length];
+        for (int i = 0; i < cards.length; i++) {
+            String[] element = str[i].split("/");
+            Suit suit = null;
+            switch (element[0]) {
+                case "H":
+                    suit = Suit.Heart;
+                    break;
+                case "D":
+                    suit = Suit.Diamond;
+                    break;
+                case "S":
+                    suit = Suit.Spade;
+                    break;
+                case "C":
+                    suit = Suit.Clover;
+                    break;
+                case "J":
+                    suit = Suit.Joker;
+                    break;
+            }
+            int number = Integer.parseInt(element[1]);
+            cards[i] = new Card(suit, number);
+        }
+        return cards;
+    }
 }
 
-class ClientConnection extends Connection implements ILobbyConnectable, IGameConnectable {
+class ClientConnection extends Connection implements IServerConnectable, ILobbyConnectable, IGameConnectable {
+    /** Implements of IServerConnectable */
+    @Override
+    public void RequestCreateAccount(String name) {
+        String msg = MakeCommand(CREATEACCOUNT, name);
+        Send(msg);
+    }
+
+    @Override
+    public void RequestDeleteAccount(String name) {
+        String msg = MakeCommand(DELETEACCOUNT, name);
+        Send(msg);
+    }
 
     /** Implements of ILobbyConnectable */
     @Override
@@ -123,6 +168,11 @@ class ClientConnection extends Connection implements ILobbyConnectable, IGameCon
     }
 }
 
+interface IServerConnectable {
+    void RequestCreateAccount(String name);
+    void RequestDeleteAccount(String name);
+}
+
 interface ILobbyConnectable {
     void RequestCreateLobby(String lobbyName, String hostName);
     void RequestJoinLobby(String lobbyName, String password, String guestName);
@@ -150,22 +200,33 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
 
     /** Implements of IClientConnectable */
     @Override
+    public void AnswerCreateAccount(boolean result, SocketChannel sc) {
+        String msg = MakeCommand(CREATEACCOUNT, (result ? OK : FAULT));
+        Send(msg, sc);
+    }
+
+    @Override
     public void AnswerCreateLobby(boolean result, SocketChannel sc) {
         String msg = MakeCommand(CREATELOBBY, (result? OK : FAULT));
         Send(msg, sc);
     }
 
     @Override
-    public void AnswerJoinLobby(Member[] joinedMember, SocketChannel sc) {
-        String[] infos = new String[joinedMember.length];
-        for (int i = 0; i < infos.length; i++) {
-            String name = joinedMember[i].GetName();
-            boolean isReady = joinedMember[i].GetReady();
-            infos[i] = name + "/" + (isReady ? READY : UNREADY);
+    public void AnswerJoinLobby(boolean result, Member[] joinedMember, SocketChannel sc) {
+        if (result) {
+            String[] infos = new String[joinedMember.length];
+            for (int i = 0; i < infos.length; i++) {
+                String name = joinedMember[i].GetName();
+                boolean isReady = joinedMember[i].GetReady();
+                infos[i] = name + "/" + (isReady ? READY : UNREADY);
+            }
+            String infosStr = MakeCommand(infos);
+            String msg = MakeCommand(JOINLOBBY, OK, infosStr);
+            Send(msg, sc);
+        } else {
+            String msg = MakeCommand(JOINLOBBY, FAULT);
+            Send(msg, sc);
         }
-        String infosStr = MakeCommand(infos);
-        String msg = MakeCommand(JOINLOBBY, infosStr);
-        Send(msg, sc);
     }
 
     /** Implements of IMemberConnectable */
@@ -176,60 +237,61 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
     }
 
     @Override
-    public void SendLeaveMember(String name, SocketChannel[] scs) {
+    public void SendLeaveMember(String name, Member[] members) {
         String msg = MakeCommand(LEAVELOBBY, name);
-        for (int i = 0; i < scs.length; i++) Send(msg, scs[i]);
+        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 
     @Override
-    public void SendReadyMember(String name, SocketChannel[] scs) {
+    public void SendReadyMember(String name, Member[] members) {
         String msg = MakeCommand(READY, name);
-        for (int i = 0; i < scs.length; i++) Send(msg, scs[i]);
+        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 
     @Override
-    public void SendUnreadyMember(String name, SocketChannel[] scs) {
+    public void SendUnreadyMember(String name, Member[] members) {
         String msg = MakeCommand(READY, name);
-        for (int i = 0; i < scs.length; i++) Send(msg, scs[i]);
+        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
     
     /** Implements of IPlayerConnectable */
     @Override
-    public void SendStartGame(SocketChannel[] scs) {
+    public void SendStartGame(Member[] members) {
         String msg = STARTGAME;
-        for (int i = 0; i < scs.length; i++) Send(msg, scs[i]);
+        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 
     @Override
-    public void SendYourTurn(SocketChannel[] scs) {
+    public void SendYourTurn(Member member) {
         String msg = YOURTURN;
-        for (int i = 0; i < scs.length; i++) Send(msg, scs[i]);
+        Send(msg, member.GetSocket());
     }
 
     @Override
-    public void SendStage(SocketChannel[] scs, Card[] cards) {
+    public void SendStage(Member[] members, Card[] cards) {
         String[] css = new String[cards.length];
         for (int i = 0; i < css.length; i++) css[i] = CardToStr(cards[i]);
         String cs = MakeCommand(css);
         String msg = MakeCommand(STAGE, cs);
-        for (int i = 0; i < scs.length; i++) Send(msg, scs[i]);
+        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 }
 
 interface IClientConnectable {
+    void AnswerCreateAccount(boolean result, SocketChannel sc);
     void AnswerCreateLobby(boolean result, SocketChannel sc);
-    void AnswerJoinLobby(Member[] joinedMember, SocketChannel sc);
+    void AnswerJoinLobby(boolean result, Member[] joinedMember, SocketChannel sc);
 }
 
 interface IMemberConnectable {
     void SendJoinMember(String name, Member[] members);
-    void SendLeaveMember(String name, SocketChannel[] scs);
-    void SendReadyMember(String name, SocketChannel[] scs);
-    void SendUnreadyMember(String name, SocketChannel[] scs);
+    void SendLeaveMember(String name, Member[] members);
+    void SendReadyMember(String name, Member[] members);
+    void SendUnreadyMember(String name, Member[] members);
 }
 
 interface IPlayerConnectable {
-    void SendStartGame(SocketChannel[] scs);
-    void SendYourTurn(SocketChannel[] scs);
-    void SendStage(SocketChannel[] scs, Card[] cards);
+    void SendStartGame(Member[] members);
+    void SendYourTurn(Member member);
+    void SendStage(Member[] members, Card[] cards);
 }

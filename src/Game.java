@@ -1,5 +1,7 @@
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -8,6 +10,7 @@ public class Game implements IGame{
     private Party party;
     private CardBlock cardBlock;
     private int passCount;
+    private Card[] stage;
     private Timer timer;
 
     Game(Party party) {
@@ -37,6 +40,18 @@ public class Game implements IGame{
 
     public void ResetTimer() {
         timer.cancel();
+    }
+
+    public void SetStage(Card[] cards) {
+        stage = cards;
+    }
+
+    public Card[] GetStage() {
+        return stage;
+    }
+
+    public Party GetParty() {
+        return party;
     }
 }
 
@@ -93,6 +108,7 @@ class Party {
 class Player {
     private String name;
     private IPlayerConnectable ipc;
+    private boolean isWin;
     private IGame callback;
 
     Player(String name, SocketChannel sc, IGame callback) {
@@ -105,7 +121,7 @@ class Player {
     }
 
     public void StartTurn() {
-    
+        
     }
 
     public void Put(Card[] cards) {
@@ -115,5 +131,9 @@ class Player {
     public void Pass() {
         callback.ResetTimer();
         
+    }
+
+    public void Win() {
+        isWin = true;
     }
 }

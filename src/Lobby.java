@@ -2,6 +2,8 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.UUID;
 
+import javafx.scene.input.PickResult;
+
 class LobbyList {
     private HashMap<String, Lobby> lobbyList;
     private int maxCount;
@@ -10,11 +12,19 @@ class LobbyList {
         this.maxCount = maxCount;
     }
 
-    public void AddLobby(Lobby lobby) {
-        lobbyList.put(lobby.GetLobbyName(), lobby);
+    private boolean CanAddLobby(String lobbyName) {
+        return Contains(lobbyName);
     }
 
-    public void RemoveLobby(String lobbyName) {
+    public boolean Add(Lobby lobby) {
+        if (CanAddLobby(lobby.GetLobbyName())) {
+            lobbyList.put(lobby.GetLobbyName(), lobby);
+            return true;
+        }
+        return false;
+    }
+
+    public void Remove(String lobbyName) {
         lobbyList.remove(lobbyName);
     }
 
@@ -62,9 +72,10 @@ public class Lobby {
         return list.size() < maxMemberCount && !list.containsKey(name) && this.password.equals(password);
     }
 
-    public void Add(String name, SocketChannel sc) {
+    public Member Add(String name, SocketChannel sc) {
         Member newMember = new Member(name, sc);
         list.put(name, newMember);
+        return newMember;
     }
 
     public void Remove(String name) {
@@ -92,6 +103,10 @@ public class Lobby {
 
     public void StartGame() {
         
+    }
+
+    public Game GetGame() {
+        return game;
     }
 }
 
