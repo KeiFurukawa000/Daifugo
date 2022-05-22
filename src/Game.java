@@ -120,6 +120,10 @@ class Player {
         return name;
     }
 
+    public void Action(String[] cmd) {
+
+    }
+
     public void StartTurn() {
         
     }

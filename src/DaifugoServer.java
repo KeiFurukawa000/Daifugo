@@ -1,13 +1,11 @@
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -18,7 +16,6 @@ public class DaifugoServer implements IDaifugoServer {
     private Selector selector;
     private ByteBuffer reader;
 
-    private ServerConnection connection;
     private AccountList accountList;
     private LobbyList lobbyList;
     
@@ -27,13 +24,13 @@ public class DaifugoServer implements IDaifugoServer {
         System.out.println("Server has been launched.");
         DaifugoServer server = new DaifugoServer(12);
         server.Open(args[0], Integer.parseInt(args[1]));
+        server.Listen();
     }
 
     DaifugoServer(int maxCount) {
         lobbyList = new LobbyList(maxCount);
         accountList = new AccountList();
         reader = ByteBuffer.allocate(512);
-        connection = new ServerConnection();
     }
 
     public void Open(String addr, int port) throws IOException {
@@ -57,8 +54,12 @@ public class DaifugoServer implements IDaifugoServer {
                         // データの読み取り
                         SocketChannel sc = (SocketChannel)key.channel();
                         String[] cmd = Read(sc);
-                        
-
+                        String accountName = cmd[0];
+                        Account account = accountList.Get(accountName);
+                        if (account == null) {
+                            account = new Account(accountName, sc, this);
+                        }
+                        account.Select(Arrays.copyOfRange(cmd, 1, cmd.length));
                     }
                 }
             }
@@ -78,105 +79,11 @@ public class DaifugoServer implements IDaifugoServer {
         return StandardCharsets.UTF_8.decode(reader).toString().split(" ");
     }
 
-    private void Action(String[] cmd, SocketChannel sc) {
-        if (cmd[0].equals(connection.CREATEACCOUNT)) {
-            boolean result = accountList.Add(new Account(cmd[1], sc, this, connection));
-            connection.AnswerCreateAccount(result, sc);
-        }
-        else {
-            Account account = accountList.GetAccount(cmd[0]);
-            
-        }
-    }
-     /*
-    private void Action(String[] cmd, SocketChannel sc) {
-        String action = cmd[0];
-        if (action.equals(connection.CREATELOBBY)) {
-            String lobbyName = cmd[1];
-            String hostName = cmd[2];
-            boolean result = lobbyList.AddLobby(new Lobby(lobbyName, hostName, sc));
-            connection.AnswerCreateLobby(result, sc);
-        }
-        else if (action.equals(connection.JOINLOBBY)) {
-            String lobbyName = cmd[1];
-            String password = cmd[2];
-            String guestName = cmd[3];
-            if (lobbyList.Contains(lobbyName)) {
-                Lobby lobby = lobbyList.GetLobby(lobbyName);
-                if (lobby.CanJoin(guestName, password)) {
-                    Member[] joinedmembers = lobby.GetMemberList();
-                    lobby.Add(guestName, sc);
-                    connection.AnswerJoinLobby(true, joinedmembers, sc);
-                    connection.SendJoinMember(guestName, joinedmembers);
-                    return;
-                }
-            }
-            connection.AnswerJoinLobby(false, null, sc);
-        }
-        else if (action.equals(connection.LEAVELOBBY)) {
-            String lobbyName = cmd[1];
-            String memberName = cmd[2];
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            lobby.Remove(memberName);
-            Member[] joinedmembers = lobby.GetMemberList();
-            connection.SendLeaveMember(memberName, joinedmembers);
-        }
-        else if (action.equals(connection.READY)) {
-            String lobbyName = cmd[1];
-            String memberName = cmd[2];
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            Member member = lobby.GetMember(memberName);
-            member.Ready();
-            Member[] members = lobby.GetMemberList();
-            connection.SendReadyMember(memberName, members);
-        }
-        else if (action.equals(connection.UNREADY)) {
-            String lobbyName = cmd[1];
-            String memberName = cmd[2];
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            Member member = lobby.GetMember(memberName);
-            member.Unready();
-            Member[] members = lobby.GetMemberList();
-            connection.SendUnreadyMember(memberName, members);
-        }
-        else if (action.equals(connection.STARTGAME)) {
-            String lobbyName = cmd[1];
-            String memberName = cmd[2];
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            Member[] members = lobby.GetMemberList();
-            connection.SendStartGame(members);
-            lobby.StartGame();
-        }
-        else if (action.equals(connection.PUT)) {
-            String lobbyName = cmd[1];
-            String playerName = cmd[2];
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            Game game = lobby.GetGame();
-            if (!cmd[3].equals("NONE")) {
-                String[] cardStr = Arrays.copyOfRange(cmd, 3, cmd.length);
-                Card[] cards = connection.StrToCard(cardStr);
-                game.SetStage(cards);
-            }
-            Member[] members = lobby.GetMemberList();
-            connection.SendStage(members, game.GetStage());
-        }
-        else if (action.equals(connection.WIN)) {
-            String lobbyName = cmd[1];
-            String playerName = cmd[2];
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            Game game = lobby.GetGame();
-            Party party = game.GetParty();
-            Player player = party.GetHead();
-            player.Win();
-        }
-    }
-    */
-
     /** Implements of IDaifugoServer */
     @Override
     public boolean CreateAccount(String name, SocketChannel sc) {
-        boolean result = accountList.Add(new Account(name, sc, this, connection));
-        connection.AnswerCreateAccount(result, sc);
+        if (name.isEmpty() && name.isBlank()) return false;
+        boolean result = accountList.Add(new Account(name, sc, this));
         return result;
     }
 
@@ -186,16 +93,17 @@ public class DaifugoServer implements IDaifugoServer {
     }
 
     @Override
-    public boolean CreateLobby(String lobbyName, String hostName, SocketChannel sc) {
-        boolean result = lobbyList.Add(new Lobby(lobbyName, hostName, sc));
-        return result;
+    public Lobby CreateLobby(String lobbyName, String hostName, SocketChannel sc) {
+        Lobby newLobby = new Lobby(lobbyName, hostName, sc);
+        boolean result = lobbyList.Add(newLobby);
+        return result ? newLobby : null;
     }
 
     @Override
-    public Lobby JoinLobby(String lobbyName, String guestName, SocketChannel sc) {
-        if (lobbyList.Contains(lobbyName)) {
-            Lobby lobby = lobbyList.GetLobby(lobbyName);
-            Member member = lobby.Add(guestName, sc);
+    public Lobby JoinLobby(String lobbyName, String password, String guestName, SocketChannel sc) {
+        Lobby lobby = lobbyList.Get(lobbyName);
+        if (lobby != null && lobby.CanJoin(guestName, password)) {
+            lobby.Add(new Member(guestName, sc, lobby));
             return lobby;
         }
         return null;
@@ -205,10 +113,13 @@ public class DaifugoServer implements IDaifugoServer {
 interface IDaifugoServer {
     boolean CreateAccount(String name, SocketChannel sc);
     void DeleteAccount(Account account);
-    boolean CreateLobby(String lobbyName, String hostName, SocketChannel sc);
-    Lobby JoinLobby(String lobbyName, String guestName, SocketChannel sc);
+    Lobby CreateLobby(String lobbyName, String hostName, SocketChannel sc);
+    Lobby JoinLobby(String lobbyName, String password, String guestName, SocketChannel sc);
 }
 
+/**
+ * アカウントをまとめるクラス
+ */
 class AccountList {
     private HashMap<String, Account> list;
 
@@ -216,24 +127,43 @@ class AccountList {
         list = new HashMap<>();
     }
 
+    /**
+     * アカウントリストにアカウントを追加する
+     * @param account 追加するアカウント
+     * @return boolean アカウントを追加できたかどうか
+     */
     public boolean Add(Account account) {
-        if (Contains(account.GetName()) || account.GetName().equals("CREATEACCOUNT")) {
+        if (Contains(account.GetName()) || account.GetName().equals(Connection.CREATEACCOUNT)) {
             return false;
         }
         list.put(account.GetName(), account);
         return true;
     }
 
+    /**
+     * アカウントを削除する
+     * @param account 削除するアカウント
+     */
     public void Remove(Account account) {
         list.remove(account.GetName());
     }
 
-    public boolean Contains(String name) {
-        return list.containsKey(name);
+    /**
+     * アカウントを取得する
+     * @param name 取得したいアカウント名
+     * @return Account 取得するアカウント
+     */
+    public Account Get(String name) {
+        return list.get(name);
     }
 
-    public Account GetAccount(String name) {
-        return list.get(name);
+    /**
+     * アカウントがアカウントリストに存在しているかを調べる
+     * @param name 存在しているか知りたいアカウント名
+     * @return boolean 存在しているかどうか
+     */
+    private boolean Contains(String name) {
+        return list.containsKey(name);
     }
 }
 
@@ -246,15 +176,51 @@ class Account {
     private Member member;
     private Player player;
 
-    Account(String name, SocketChannel sc, IDaifugoServer callback, IClientConnectable connection) {
+    Account(String name, SocketChannel sc, IDaifugoServer callback) {
         this.name = name;
         this.sc = sc;
         this.callback = callback;
-        this.connection = connection;
+        connection = new ServerConnection(this.sc);
     }
 
     public String GetName() {
         return name;
+    }
+
+    public void Select(String[] cmd) {
+        String type = cmd[0];
+
+        if (type.equals(Connection.ACCOUNT)) {
+            Action(Arrays.copyOfRange(cmd, 1, cmd.length));
+        }
+        else if (type.equals(Connection.MEMBER)) {
+            member.Action(Arrays.copyOfRange(cmd, 1, cmd.length));
+        }
+        else if (type.equals(Connection.PLAYER)) {
+            player.Action(Arrays.copyOfRange(cmd, 1, cmd.length));
+        }
+    }
+
+    private void Action(String[] cmd) {
+        String action = cmd[0];
+        if (action.equals(Connection.CREATEACCOUNT)) {
+            CreateAccount();
+            System.out.println(String.join(" ", Connection.ACCOUNT, Connection.CREATEACCOUNT));
+        }
+        else if (action.equals(Connection.DELETEACCOUNT)) {
+            DeleteAccount();
+        }
+        else if (action.equals(Connection.CREATELOBBY)) {
+            CreateLobby(cmd[1]);
+        }
+        else if (action.equals(Connection.JOINLOBBY)) {
+            JoinLobby(cmd[1], cmd[2]);
+        }
+    }
+
+    public void CreateAccount() {
+        boolean result = callback.CreateAccount(name, sc);
+        connection.AnswerCreateAccount(result);
     }
 
     public void DeleteAccount() {
@@ -262,27 +228,19 @@ class Account {
     }
 
     public void CreateLobby(String lobbyName) {
-        boolean result = callback.CreateLobby(lobbyName, name, sc);
-        connection.AnswerCreateAccount(result, sc);
+        Lobby lobby = callback.CreateLobby(lobbyName, name, sc);
+        connection.AnswerCreateLobby(lobby != null ? true : false);
     }
 
-    public void JoinLobby(String lobbyName) {
-       Lobby lobby = callback.JoinLobby(lobbyName, name, sc);
-        if (member == null) {
-            connection.AnswerJoinLobby(false, null, sc);
+    public void JoinLobby(String lobbyName, String password) {
+       Lobby lobby = callback.JoinLobby(lobbyName, password, name, sc);
+        if (lobby == null) {
+            connection.AnswerJoinLobby(false, null);
         }
         else {
             this.member = lobby.GetMember(name);
             Member[] members = lobby.GetMemberList();
-            connection.AnswerJoinLobby(true, members, sc);
+            connection.AnswerJoinLobby(true, members);
         }
-    }
-
-    public void ActionMember() {
-
-    }
-
-    public void ActionPlayer() {
-
     }
 }

@@ -2,18 +2,20 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.UUID;
 
-import javafx.scene.input.PickResult;
-
+/**
+ * ロビーをまとめるクラス
+ */
 class LobbyList {
     private HashMap<String, Lobby> lobbyList;
     private int maxCount;
 
     LobbyList(int maxCount) {
+        lobbyList = new HashMap<>();
         this.maxCount = maxCount;
     }
 
     private boolean CanAddLobby(String lobbyName) {
-        return Contains(lobbyName);
+        return !Contains(lobbyName) && lobbyList.size() < maxCount;
     }
 
     public boolean Add(Lobby lobby) {
@@ -28,24 +30,16 @@ class LobbyList {
         lobbyList.remove(lobbyName);
     }
 
-    public Lobby GetLobby(String lobbyName) {
+    public Lobby Get(String lobbyName) {
         return lobbyList.get(lobbyName);
     }
 
-    public int GetMaxCount() {
-        return maxCount;
-    }
-
-    public int GetCurrentCount() {
-        return lobbyList.size();
-    }
-
-    public boolean Contains(String lobbyName) {
+    private boolean Contains(String lobbyName) {
         return lobbyList.containsKey(lobbyName);
     }
 }
 
-public class Lobby {
+public class Lobby implements ILobby {
     private String name;
     private String password;
     private Member host;
@@ -56,7 +50,7 @@ public class Lobby {
 
     Lobby(String lobbyName, String hostName, SocketChannel sc) {
         this.name = lobbyName;
-        this.host = new Member(name, sc);
+        this.host = new Member(name, sc, this);
         this.password = CreatePassword();
     }
 
@@ -68,27 +62,24 @@ public class Lobby {
         return name;
     }
 
+    public String GetPassword() {
+        return password;
+    }
+
     public boolean CanJoin(String name, String password) {
         return list.size() < maxMemberCount && !list.containsKey(name) && this.password.equals(password);
     }
 
-    public Member Add(String name, SocketChannel sc) {
-        Member newMember = new Member(name, sc);
-        list.put(name, newMember);
-        return newMember;
+    public void Add(Member member) {
+        list.put(member.GetName(), member);
     }
 
-    public void Remove(String name) {
-        Member member = list.remove(name);
-        member.Leave();
+    public void Remove(Member member) {
+       list.remove(member.GetName());
     }
 
     public Member GetMember(String name) {
         return list.get(name);
-    }
-
-    public Member[] GetMemberList() {
-        return list.values().toArray(new Member[list.size()]);
     }
 
     public Member GetHost() {
@@ -105,33 +96,57 @@ public class Lobby {
         
     }
 
-    public Game GetGame() {
-        return game;
+    @Override
+    public Member[] GetMemberList() {
+        return list.values().toArray(new Member[list.size()]);
     }
+
+    @Override
+    public void Leave(Member member) {
+        list.remove(member.GetName());
+    }
+}
+
+interface ILobby {
+    Member[] GetMemberList();
+    void Leave(Member member);
 }
 
 class Member {
     private String name;
-    private SocketChannel sc;
     private boolean isReady;
+    private IMemberConnectable connection;
+    private ILobby callback;
 
-    Member(String name, SocketChannel sc) {
+    Member(String name, SocketChannel sc, ILobby callback) {
         this.name = name;
-        this.sc = sc;
+        this.connection = new ServerConnection(sc);
+        this.callback = callback;
     }
 
-    public void Leave() {
-        
+    public void Action(String[] cmd) {
+        String action = cmd[0];
+        if (action.equals(Connection.LEAVELOBBY)) {
+            LeaveLobby();
+        }
+        else if (action.equals(Connection.READY)) {
+            Ready();
+        }
+    }
+
+    private void LeaveLobby() {
+        callback.Leave(this);
+        connection.SendLeaveMember(name, callback.GetMemberList());
     }
 
     public void Ready() {
         isReady = true;
-        
+        connection.SendReadyMember(name, callback.GetMemberList());
     }
 
     public void Unready() {
         isReady = false;
-        
+        connection.SendUnreadyMember(name, callback.GetMemberList());
     }
 
     public boolean GetReady() {
@@ -140,9 +155,5 @@ class Member {
 
     public String GetName() {
         return name;
-    }
-
-    public SocketChannel GetSocket() {
-        return sc;
     }
 }

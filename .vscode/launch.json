@@ -6,9 +6,17 @@
     "configurations": [
         {
             "type": "java",
+            "name": "Launch DaifugoServer",
+            "request": "launch",
+            "mainClass": "DaifugoServer",
+            "projectName": "Daifugo_237ad025",
+            "args": "localhost 8765"
+        },
+        {
+            "type": "java",
             "name": "Launch Current File",
             "request": "launch",
-            "mainClass": "${file}"
+            "mainClass": "${file}",
         },
         {
             "type": "java",
@@ -17,14 +25,6 @@
             "mainClass": "DaifugoApp",
             "projectName": "Daifugo_237ad025",
             "vmArgs": "--module-path /Applications/ProgramFiles/javafx-sdk-18/lib --add-modules javafx.controls,javafx.fxml",
-            "args": "localhost 8765"
-        },
-        {
-            "type": "java",
-            "name": "Launch Server",
-            "request": "launch",
-            "mainClass": "Server",
-            "projectName": "Daifugo_237ad025",
             "args": "localhost 8765"
         }
     ]

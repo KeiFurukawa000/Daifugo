@@ -1,30 +1,14 @@
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
-public class Connection {
+import javafx.application.Platform;
+
+public class Connection implements IConnectable {
     private String name;
     protected SocketChannel socket;
-
-    protected final String OK = "OK";
-    protected final String FAULT = "FAULT";
-
-    protected final String MEMBER = "MEMBER";
-    protected final String PLAYER = "PLAYER";
-
-    protected final String CREATEACCOUNT = "CREATEACCOUNT";
-    protected final String DELETEACCOUNT = "DELETEACCOUNT";
-    protected final String CREATELOBBY = "CREATELOBBY";
-    protected final String JOINLOBBY = "JOINLOBBY";
-    protected final String LEAVELOBBY = "LEAVELOBBY";
-    protected final String STARTGAME = "STARTGAME"; 
-    protected final String YOURTURN = "YOURTURN";
-    protected final String READY = "READY";
-    protected final String UNREADY = "UNREADY";
-    protected final String STAGE = "STAGE";
-    protected final String PUT = "PUT";
-    protected final String PASS = "PASS";
-    protected final String WIN = "WIN";
 
     public SocketChannel GetSocket() {
         return socket;
@@ -36,6 +20,7 @@ public class Connection {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println(msg);
     }
 
     protected String MakeCommand(String... strs) {
@@ -94,30 +79,58 @@ public class Connection {
     }
 }
 
+interface IConnectable {
+    String OK = "OK";
+    String FAULT = "FAULT";
+
+    String ACCOUNT = "ACCOUNT";
+    String MEMBER = "MEMBER";
+    String PLAYER = "PLAYER";
+
+    String CREATEACCOUNT = "CREATEACCOUNT";
+    String DELETEACCOUNT = "DELETEACCOUNT";
+    String CREATELOBBY = "CREATELOBBY";
+    String JOINLOBBY = "JOINLOBBY";
+    String LEAVELOBBY = "LEAVELOBBY";
+    String STARTGAME = "STARTGAME"; 
+    String YOURTURN = "YOURTURN";
+    String READY = "READY";
+    String UNREADY = "UNREADY";
+    String STAGE = "STAGE";
+    String PUT = "PUT";
+    String PASS = "PASS";
+    String WIN = "WIN";
+}
+
 class ClientConnection extends Connection implements IServerConnectable, ILobbyConnectable, IGameConnectable {
+    
+    ClientConnection(String addr, int port, IDaifugoApp callback) throws IOException {
+        this.socket = SocketChannel.open(new InetSocketAddress(addr, port));
+    }
+
     /** Implements of IServerConnectable */
     @Override
     public void RequestCreateAccount(String name) {
-        String msg = MakeCommand(CREATEACCOUNT, name);
+        String msg = MakeCommand(name, ACCOUNT, CREATEACCOUNT);
         Send(msg);
     }
 
     @Override
     public void RequestDeleteAccount(String name) {
-        String msg = MakeCommand(DELETEACCOUNT, name);
+        String msg = MakeCommand(name, ACCOUNT, DELETEACCOUNT);
         Send(msg);
     }
 
     /** Implements of ILobbyConnectable */
     @Override
     public void RequestCreateLobby(String lobbyName, String hostName) {
-        String msg = MakeCommand(CREATELOBBY, lobbyName, hostName);
+        String msg = MakeCommand(hostName, ACCOUNT, CREATELOBBY, lobbyName);
         Send(msg);
     }
 
     @Override
     public void RequestJoinLobby(String lobbyName, String password, String guestName) {
-        String msg = MakeCommand(JOINLOBBY, lobbyName, password, guestName);
+        String msg = MakeCommand(guestName, ACCOUNT, JOINLOBBY, lobbyName, password);
         Send(msg);
     }
 
@@ -168,8 +181,55 @@ class ClientConnection extends Connection implements IServerConnectable, ILobbyC
     }
 }
 
+class ClientListen implements Runnable {
+    private SocketChannel sc;
+    private ByteBuffer reader;
+    private IDaifugoApp callback;
+
+    ClientListen(SocketChannel sc, IDaifugoApp callback) {
+        this.sc = sc;
+        reader = ByteBuffer.allocate(512);
+        this.callback = callback;
+    }
+
+    @Override
+    public void run() {
+        while (sc.isConnected()) {
+            try {
+                reader.clear();
+                sc.read(reader);
+                reader.flip();
+                String msg = StandardCharsets.UTF_8.decode(reader).toString();
+                Read(msg);
+            } catch (IOException e) { }
+        }
+    }
+
+    private void Read(String msg) throws IOException {
+        System.out.println(msg);
+        String[] cmd = msg.split(" ");
+        Platform.runLater( () -> {
+            if (cmd[0].equals(Connection.CREATEACCOUNT)) {
+                if (cmd[1].equals(Connection.OK)) callback.ShowSelectHostOrJoinScene();
+            }
+        });
+
+    }
+}
+
 interface IServerConnectable {
+    /**
+     * アカウント作成をサーバーへ要求する
+     * @param name 作成するアカウント名
+     * @apiNote name ACCOUNT CREATEACCOUNT 
+     */
     void RequestCreateAccount(String name);
+
+    /**
+     * アカウントの削除をサーバーへ要求する
+     * @param name 削除するアカウント名
+     * @apiNote name ACCOUNT DELETEACCOUNT
+     */
     void RequestDeleteAccount(String name);
 }
 
@@ -190,29 +250,25 @@ interface IGameConnectable {
 
 class ServerConnection extends Connection implements IClientConnectable, IMemberConnectable, IPlayerConnectable {
 
-    private void Send(String msg, SocketChannel sc) {
-        try {
-            sc.write(StandardCharsets.UTF_8.encode(msg));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    ServerConnection(SocketChannel sc) {
+        this.socket = sc;
     }
 
     /** Implements of IClientConnectable */
     @Override
-    public void AnswerCreateAccount(boolean result, SocketChannel sc) {
+    public void AnswerCreateAccount(boolean result) {
         String msg = MakeCommand(CREATEACCOUNT, (result ? OK : FAULT));
-        Send(msg, sc);
+        Send(msg);
     }
 
     @Override
-    public void AnswerCreateLobby(boolean result, SocketChannel sc) {
+    public void AnswerCreateLobby(boolean result) {
         String msg = MakeCommand(CREATELOBBY, (result? OK : FAULT));
-        Send(msg, sc);
+        Send(msg);
     }
 
     @Override
-    public void AnswerJoinLobby(boolean result, Member[] joinedMember, SocketChannel sc) {
+    public void AnswerJoinLobby(boolean result, Member[] joinedMember) {
         if (result) {
             String[] infos = new String[joinedMember.length];
             for (int i = 0; i < infos.length; i++) {
@@ -222,10 +278,10 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
             }
             String infosStr = MakeCommand(infos);
             String msg = MakeCommand(JOINLOBBY, OK, infosStr);
-            Send(msg, sc);
+            Send(msg);
         } else {
             String msg = MakeCommand(JOINLOBBY, FAULT);
-            Send(msg, sc);
+            Send(msg);
         }
     }
 
@@ -233,38 +289,38 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
     @Override
     public void SendJoinMember(String name, Member[] members) {
         String msg = MakeCommand(JOINLOBBY, name);
-        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
+        //for (int i = 0; i < members.length; i++)
     }
 
     @Override
     public void SendLeaveMember(String name, Member[] members) {
         String msg = MakeCommand(LEAVELOBBY, name);
-        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
+        //for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 
     @Override
     public void SendReadyMember(String name, Member[] members) {
         String msg = MakeCommand(READY, name);
-        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
+        //for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 
     @Override
     public void SendUnreadyMember(String name, Member[] members) {
         String msg = MakeCommand(READY, name);
-        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
+        //for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
     
     /** Implements of IPlayerConnectable */
     @Override
     public void SendStartGame(Member[] members) {
         String msg = STARTGAME;
-        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
+        //for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 
     @Override
     public void SendYourTurn(Member member) {
         String msg = YOURTURN;
-        Send(msg, member.GetSocket());
+        //Send(msg, member.GetSocket());
     }
 
     @Override
@@ -273,14 +329,14 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
         for (int i = 0; i < css.length; i++) css[i] = CardToStr(cards[i]);
         String cs = MakeCommand(css);
         String msg = MakeCommand(STAGE, cs);
-        for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
+        //for (int i = 0; i < members.length; i++) Send(msg, members[i].GetSocket());
     }
 }
 
-interface IClientConnectable {
-    void AnswerCreateAccount(boolean result, SocketChannel sc);
-    void AnswerCreateLobby(boolean result, SocketChannel sc);
-    void AnswerJoinLobby(boolean result, Member[] joinedMember, SocketChannel sc);
+interface IClientConnectable extends IConnectable {
+	void AnswerCreateAccount(boolean result);
+    void AnswerCreateLobby(boolean result);
+    void AnswerJoinLobby(boolean result, Member[] joinedMember);
 }
 
 interface IMemberConnectable {
