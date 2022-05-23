@@ -103,7 +103,7 @@ public class DaifugoServer implements IDaifugoServer {
     public Lobby JoinLobby(String lobbyName, String password, String guestName, SocketChannel sc) {
         Lobby lobby = lobbyList.Get(lobbyName);
         if (lobby != null && lobby.CanJoin(guestName, password)) {
-            lobby.Add(new Member(guestName, sc, lobby));
+            lobby.Add(new Member(guestName, false, sc, lobby));
             return lobby;
         }
         return null;
@@ -229,18 +229,18 @@ class Account {
 
     public void CreateLobby(String lobbyName) {
         Lobby lobby = callback.CreateLobby(lobbyName, name, sc);
-        connection.AnswerCreateLobby(lobby != null ? true : false);
+        connection.AnswerCreateLobby(lobby != null ? true : false, lobby.GetPassword());
     }
 
     public void JoinLobby(String lobbyName, String password) {
        Lobby lobby = callback.JoinLobby(lobbyName, password, name, sc);
         if (lobby == null) {
-            connection.AnswerJoinLobby(false, null);
+            connection.AnswerJoinLobby(false, null, null);
         }
         else {
             this.member = lobby.GetMember(name);
-            Member[] members = lobby.GetMemberList();
-            connection.AnswerJoinLobby(true, members);
+            Member[] members = lobby.GetMemberArray();
+            connection.AnswerJoinLobby(true, lobby.GetLobbyName(), members);
         }
     }
 }

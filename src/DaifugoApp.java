@@ -8,8 +8,12 @@ import javafx.stage.Stage;
 
 public class DaifugoApp extends Application implements IDaifugoApp {
     private String name;
+    private String lobbyName;
+    private Member[] lobbyMember;
     private Stage stage;
     private ClientConnection connection;
+    private HostLobbySceneController hostLobbyScenecontroller;
+    private GuestLobbySceneController guestLobbyScenecontroller;
     private Thread thread;
 
     public static void main(String[] args) {
@@ -82,12 +86,101 @@ public class DaifugoApp extends Application implements IDaifugoApp {
             stage.show();
         } catch (IOException e) {}
     }
+
+    @Override
+    public void ShowJoinLobbyScene() {
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("JoinLobbyScene.fxml"));
+        Parent root;
+        try {
+            root = (Parent)fxmlLoader.load();
+            JoinLobbySceneController controller = fxmlLoader.getController();
+            controller.Init(this, connection);
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {}
+    }
+
+    @Override
+    public void ShowHostLobbyScene(String password) {
+        guestLobbyScenecontroller = null;
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("HostLobbyScene.fxml"));
+        Parent root;
+        try {
+            root = (Parent)fxmlLoader.load();
+            hostLobbyScenecontroller = (HostLobbySceneController)fxmlLoader.getController();
+            hostLobbyScenecontroller.SetCallback(this, connection, password);
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {}
+    }
+
+    @Override
+    public void ShowGuestLobbyScene(String[] members) {
+        hostLobbyScenecontroller = null;
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("GuestLobbyScene.fxml"));
+        Parent root;
+        try {
+            root = (Parent)fxmlLoader.load();
+            guestLobbyScenecontroller = (GuestLobbySceneController)fxmlLoader.getController();
+            guestLobbyScenecontroller.Init(this, connection, members);
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {}
+    }
+
+    @Override
+    public void SetLobbyName(String name) {
+        lobbyName = name;
+    }
+
+    @Override
+    public String GetLobbyName() {
+        return lobbyName;
+    }
+
+    @Override
+    public void AddLobbyMember(String name) {
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onJoinGuest(name);
+        else guestLobbyScenecontroller.onJoinGuest(name);
+    }
+
+    @Override
+    public void RemoveLobbyMember(String name) {
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onLeaveGuest(name); 
+        else guestLobbyScenecontroller.onLeaveGuest(name);
+    }
+
+    @Override
+    public void ReadyLobbyMember(String name) {
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onReadyGuest(name);
+        else guestLobbyScenecontroller.onReadyGuest(name);
+    }
+
+    @Override
+    public void UnreadyLobbyMember(String name) {
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onUnreadyGuest(name);
+        else guestLobbyScenecontroller.onUnreadyGuest(name);
+    }
+
+    
 }
 
 interface IDaifugoApp {
     void SetName(String name);
     String GetName();
+    void SetLobbyName(String name);
+    String GetLobbyName();
     void ShowStartScene();
     void ShowSelectHostOrJoinScene();
     void ShowCreateLobbyScene();
+    void ShowJoinLobbyScene();
+    void ShowHostLobbyScene(String password);
+    void ShowGuestLobbyScene(String[] members);
+    void AddLobbyMember(String name);
+    void RemoveLobbyMember(String name);
+    void ReadyLobbyMember(String name);
+    void UnreadyLobbyMember(String name);
 }
