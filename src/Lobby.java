@@ -1,5 +1,6 @@
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.UUID;
 
 /**
@@ -27,7 +28,7 @@ class LobbyList {
     }
 
     public void Remove(String lobbyName) {
-        lobbyList.remove(lobbyName);
+       lobbyList.remove(lobbyName); 
     }
 
     public Lobby Get(String lobbyName) {
@@ -44,14 +45,21 @@ public class Lobby implements ILobby {
     private String password;
     private Member host;
     private HashMap<String, Member> list;
+    private LinkedList<Member> members;
     private Game game;
 
-    private final int maxMemberCount = 4;
+    private final int maxMemberCount = 5;
 
     Lobby(String lobbyName, String hostName, SocketChannel sc) {
+        list = new HashMap<>();
+        members = new LinkedList<>();
+
         this.name = lobbyName;
-        this.host = new Member(name, sc, this);
+        this.host = new Member(hostName, true, sc, this);
+        this.host.Ready();
         this.password = CreatePassword();
+
+        Add(host);
     }
 
     private String CreatePassword() {
@@ -71,11 +79,14 @@ public class Lobby implements ILobby {
     }
 
     public void Add(Member member) {
+        member.GetConnection().SendJoinMember(member.GetName(), GetMemberArray());
         list.put(member.GetName(), member);
+        members.add(member);
     }
 
     public void Remove(Member member) {
        list.remove(member.GetName());
+       members.remove(member);
     }
 
     public Member GetMember(String name) {
@@ -88,7 +99,7 @@ public class Lobby implements ILobby {
 
     public boolean IsAllReady() {
         Member[] all = list.values().toArray(new Member[list.size()]);
-        for (int i = 0; i < all.length; i++) if (!all[i].GetReady()) return false;
+        for (int i = 0; i < all.length; i++) if (!all[i].IsReady()) return false;
         return true;
     }
 
@@ -97,31 +108,38 @@ public class Lobby implements ILobby {
     }
 
     @Override
-    public Member[] GetMemberList() {
-        return list.values().toArray(new Member[list.size()]);
+    public Member[] GetMemberArray() {
+        return members.toArray(new Member[members.size()]);
     }
 
     @Override
     public void Leave(Member member) {
         list.remove(member.GetName());
+        members.remove(member);
     }
 }
 
 interface ILobby {
-    Member[] GetMemberList();
+    Member[] GetMemberArray();
     void Leave(Member member);
 }
 
 class Member {
     private String name;
+    private boolean isHost;
     private boolean isReady;
     private IMemberConnectable connection;
     private ILobby callback;
 
-    Member(String name, SocketChannel sc, ILobby callback) {
+    Member(String name, boolean isHost, SocketChannel sc, ILobby callback) {
         this.name = name;
+        this.isHost = isHost;
         this.connection = new ServerConnection(sc);
         this.callback = callback;
+    }
+
+    public boolean IsHost() {
+        return isHost;
     }
 
     public void Action(String[] cmd) {
@@ -132,24 +150,34 @@ class Member {
         else if (action.equals(Connection.READY)) {
             Ready();
         }
+        else if (action.equals(Connection.UNREADY)) {
+            Unready();
+        }
+        else if (action.equals(Connection.STARTGAME)) {
+            
+        }
+    }
+
+    public IMemberConnectable GetConnection() {
+        return connection;
     }
 
     private void LeaveLobby() {
         callback.Leave(this);
-        connection.SendLeaveMember(name, callback.GetMemberList());
+        connection.SendLeaveMember(name, callback.GetMemberArray());
     }
 
     public void Ready() {
         isReady = true;
-        connection.SendReadyMember(name, callback.GetMemberList());
+        connection.SendReadyMember(name, callback.GetMemberArray());
     }
 
     public void Unready() {
         isReady = false;
-        connection.SendUnreadyMember(name, callback.GetMemberList());
+        connection.SendUnreadyMember(name, callback.GetMemberArray());
     }
 
-    public boolean GetReady() {
+    public boolean IsReady() {
         return isReady;
     }
 

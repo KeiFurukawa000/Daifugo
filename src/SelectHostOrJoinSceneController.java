@@ -31,7 +31,7 @@ public class SelectHostOrJoinSceneController {
 
     @FXML
     void onPressedJoinLobbyButton(ActionEvent event) {
-
+        callback.ShowJoinLobbyScene();
     }
 
 }
