@@ -50,21 +50,22 @@ public class DaifugoApp extends Application implements IDaifugoApp {
         thread = new Thread(new ClientListen(connection.getSocket(), this));
         thread.start();
         this.stage = stage;
-        ShowStartScene();
+        showStartScene();
     }
 
+    /** Implements of IDaifugoApp */
     @Override
-    public void SetName(String name) {
+    public void setName(String name) {
         this.name = name;
     }
 
     @Override
-    public String GetName() {
+    public String getName() {
         return name;
     }
 
     @Override
-    public void ShowStartScene() {
+    public void showStartScene() {
         if (name != null && (!name.isEmpty() || !name.isBlank())) connection.RequestDeleteAccount(name);
 
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("StartScene.fxml"));
@@ -80,7 +81,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void ShowSelectHostOrJoinScene() {
+    public void showSelectHostOrJoinScene() {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("SelectHostOrJoinScene.fxml"));
         Parent root;
         try {
@@ -94,7 +95,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void ShowCreateLobbyScene() {
+    public void showCreateLobbyScene() {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("CreateLobbyScene.fxml"));
         Parent root;
         try {
@@ -108,7 +109,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void ShowJoinLobbyScene() {
+    public void showJoinLobbyScene() {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("JoinLobbyScene.fxml"));
         Parent root;
         try {
@@ -122,7 +123,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void ShowHostLobbyScene(String password, String[] members) {
+    public void showHostLobbyScene(String password, String[] members) {
         guestLobbyScenecontroller = null;
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("HostLobbyScene.fxml"));
         Parent root;
@@ -137,7 +138,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void ShowGuestLobbyScene(String[] members) {
+    public void showGuestLobbyScene(String[] members) {
         hostLobbyScenecontroller = null;
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("GuestLobbyScene.fxml"));
         Parent root;
@@ -152,60 +153,101 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void SetLobbyName(String name) {
+    public void setLobbyName(String name) {
         lobbyName = name;
     }
 
     @Override
-    public String GetLobbyName() {
+    public String getLobbyName() {
         return lobbyName;
     }
 
     @Override
-    public void AddLobbyMember(String name) {
+    public void addLobbyMember(String name) {
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onJoinGuest(name);
         else guestLobbyScenecontroller.onJoinGuest(name);
     }
 
     @Override
-    public void RemoveLobbyMember(String name) {
+    public void removeLobbyMember(String name) {
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onLeaveGuest(name);
         else guestLobbyScenecontroller.onLeaveGuest(name);
     }
 
     @Override
-    public void ReadyLobbyMember(String name) {
+    public void readyLobbyMember(String name) {
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onReadyGuest(name);
         else guestLobbyScenecontroller.onReadyGuest(name);
     }
 
     @Override
-    public void UnreadyLobbyMember(String name) {
+    public void unreadyLobbyMember(String name) {
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onUnreadyGuest(name);
         else guestLobbyScenecontroller.onUnreadyGuest(name);
     }
 
     @Override
-    public void ChangeHost(String name) {
+    public void changeHost(String name) {
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onChangeHost(name); 
         else guestLobbyScenecontroller.onChangeHost(name);
     }
 }
 
 interface IDaifugoApp {
-    void SetName(String name);
-    String GetName();
-    void SetLobbyName(String name);
-    String GetLobbyName();
-    void ShowStartScene();
-    void ShowSelectHostOrJoinScene();
-    void ShowCreateLobbyScene();
-    void ShowJoinLobbyScene();
-    void ShowHostLobbyScene(String password, String[] members);
-    void ShowGuestLobbyScene(String[] members);
-    void AddLobbyMember(String name);
-    void RemoveLobbyMember(String name);
-    void ReadyLobbyMember(String name);
-    void UnreadyLobbyMember(String name);
-    void ChangeHost(String name);
+    /**
+     * アカウントの名前をセットする
+     * @param name アカウントの名前
+     */
+    void setName(String name);
+
+    /**
+     * アカウントの名前を取得する
+     * @return アカウントの名前
+     */
+    String getName();
+
+    /**
+     * 現在のロビーの名前をセットする
+     * @param name 現在のロビーの名前
+     */
+    void setLobbyName(String name);
+
+    /**
+     * 現在のロビーの名前を取得する
+     * @return 現在のロビーの名前
+     */
+    String getLobbyName();
+
+    /** スタート画面の表示 */
+    void showStartScene();
+
+    /** ロビー作成/入室 選択画面の表示 */
+    void showSelectHostOrJoinScene();
+
+    /** ロビー作成画面の表示 */
+    void showCreateLobbyScene();
+
+    /** ロビー入室画面の表示 */
+    void showJoinLobbyScene();
+
+    /** ホストとしてのロビー画面の表示 */
+    void showHostLobbyScene(String password, String[] members);
+
+    /** ゲストとしてのロビー画面の表示 */
+    void showGuestLobbyScene(String[] members);
+
+    /** ロビー画面にメンバーを追加する */
+    void addLobbyMember(String name);
+
+    /** ロビー画面からメンバーを削除する */
+    void removeLobbyMember(String name);
+
+    /** ロビー画面のメンバーを準備状態にする */
+    void readyLobbyMember(String name);
+
+    /** ロビー画面のメンバーを非準備状態にする */
+    void unreadyLobbyMember(String name);
+
+    /** ホストを変更する */
+    void changeHost(String name);
 }
