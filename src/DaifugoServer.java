@@ -15,11 +15,18 @@ public class DaifugoServer implements IDaifugoServer {
     private ServerSocketChannel socket;
     private Selector selector;
     private ByteBuffer reader;
+    private final int READER_BUFSIZE = 512;
 
     private AccountList accountList;
     private LobbyList lobbyList;
     
 
+    /**
+     * メイン関数
+     * @param args IPアドレス ポート番号 ex) localhost 8765
+     * @throws NumberFormatException
+     * @throws IOException
+     */
     public static void main(String[] args) throws NumberFormatException, IOException {
         System.out.println("Server has been launched.");
         DaifugoServer server = new DaifugoServer(12);
@@ -27,12 +34,23 @@ public class DaifugoServer implements IDaifugoServer {
         server.Listen();
     }
 
+    /**
+     * コンストラクタ
+     * インスタンスの生成と読み取り用バッファの容量割当
+     * @param maxCount 最大ロビー数
+     */
     DaifugoServer(int maxCount) {
         lobbyList = new LobbyList(maxCount);
         accountList = new AccountList();
-        reader = ByteBuffer.allocate(512);
+        reader = ByteBuffer.allocate(READER_BUFSIZE);
     }
 
+    /**
+     * サーバーの開放
+     * @param addr 開放するサーバーのIPアドレス
+     * @param port 開放するポート番号
+     * @throws IOException 例外
+     */
     public void Open(String addr, int port) throws IOException {
         socket = ServerSocketChannel.open();
         socket.bind(new InetSocketAddress(addr, port));
@@ -42,6 +60,10 @@ public class DaifugoServer implements IDaifugoServer {
         System.out.println("Server has been opened. (IP: " + addr + ", PORT: " + port + ")");
     }
 
+    /**
+     * クライアント送信の読み取り
+     * @throws IOException
+     */
     public void Listen() throws IOException {
         while (socket.isOpen()) {
             while (selector.selectNow() > 0) {
@@ -51,7 +73,6 @@ public class DaifugoServer implements IDaifugoServer {
                     iterator.remove();
                     if (key.isAcceptable()) { onAccept(); }
                     else if (key.isReadable()) {
-                        // データの読み取り
                         SocketChannel sc = (SocketChannel)key.channel();
                         String[] cmd = Read(sc);
                         String accountName = cmd[0];
@@ -66,12 +87,23 @@ public class DaifugoServer implements IDaifugoServer {
         }
     }
 
+    /**
+     * クライアントへの通信許可
+     * 初めてクライアントからの接続が行われた際に呼び出される
+     * @throws IOException
+     */
     private void onAccept() throws IOException {
         SocketChannel sc = socket.accept();
         sc.configureBlocking(false);
         sc.register(selector, SelectionKey.OP_READ);
     }
 
+    /**
+     * クライアントから送られたバッファをコマンドへ変換する
+     * @param sc 送信したクライアントのソケットチャンネル
+     * @return コマンド
+     * @throws IOException
+     */
     private String[] Read(SocketChannel sc) throws IOException {
         if (!sc.isConnected()) sc.close();
         reader.clear();
@@ -82,26 +114,26 @@ public class DaifugoServer implements IDaifugoServer {
 
     /** Implements of IDaifugoServer */
     @Override
-    public boolean CreateAccount(String name, SocketChannel sc) {
+    public boolean onReceiveCreateAccountRequest(String name, SocketChannel sc) {
         if (name.isEmpty() && name.isBlank()) return false;
         boolean result = accountList.Add(new Account(name, sc, this));
         return result;
     }
 
     @Override
-    public void DeleteAccount(Account account) {
+    public void onReceiveDeleteAccountRequest(Account account) {
         accountList.Remove(account);
     }
 
     @Override
-    public Lobby CreateLobby(String lobbyName, String hostName, SocketChannel sc) {
+    public Lobby onReceiveCreateLobbyRequest(String lobbyName, String hostName, SocketChannel sc) {
         Lobby newLobby = new Lobby(lobbyName, hostName, sc);
         boolean result = lobbyList.add(newLobby);
         return result ? newLobby : null;
     }
 
     @Override
-    public Lobby JoinLobby(String lobbyName, String password, String guestName, SocketChannel sc) {
+    public Lobby onReceiveJoinLobbyRequest(String lobbyName, String password, String guestName, SocketChannel sc) {
         Lobby lobby = lobbyList.get(lobbyName);
         if (lobby != null && lobby.canJoin(guestName, password)) {
             lobby.add(new Member(guestName, false, sc, lobby));
@@ -112,10 +144,38 @@ public class DaifugoServer implements IDaifugoServer {
 }
 
 interface IDaifugoServer {
-    boolean CreateAccount(String name, SocketChannel sc);
-    void DeleteAccount(Account account);
-    Lobby CreateLobby(String lobbyName, String hostName, SocketChannel sc);
-    Lobby JoinLobby(String lobbyName, String password, String guestName, SocketChannel sc);
+    /**
+     * クライアントからアカウント作成要求があったときに呼び出される
+     * @param name クライアントの名前
+     * @param sc クライアントのソケットチャンネル
+     * @return 要求が承認されたかどうか
+     */
+    boolean onReceiveCreateAccountRequest(String name, SocketChannel sc);
+
+    /**
+     * クライアントからアカウント削除要求があったときに呼び出される
+     * @param account クライアントのアカウント
+     */
+    void onReceiveDeleteAccountRequest(Account account);
+
+    /**
+     * クライアントからロビー作成要求があったときに呼び出される
+     * @param lobbyName 作成するロビーの名前
+     * @param hostName 作成要求をしたクライアントの名前
+     * @param sc クライアントのソケットチャンネル
+     * @return 作成したロビー. 要求が棄却された場合はnullを返す
+     */
+    Lobby onReceiveCreateLobbyRequest(String lobbyName, String hostName, SocketChannel sc);
+
+    /**
+     * クライアントからロビー入室要求があったときに呼び出される
+     * @param lobbyName 入室するロビーの名前
+     * @param password 入室するロビーのパスワード
+     * @param guestName 入室するクライアントの名前
+     * @param sc クライアントのソケットチャンネル
+     * @return 入室するロビーの名前
+     */
+    Lobby onReceiveJoinLobbyRequest(String lobbyName, String password, String guestName, SocketChannel sc);
 }
 
 /**
@@ -124,6 +184,10 @@ interface IDaifugoServer {
 class AccountList {
     private HashMap<String, Account> list;
 
+    /**
+     * コンストラクタ
+     * ハッシュマップの生成
+     */
     AccountList() {
         list = new HashMap<>();
     }
@@ -177,6 +241,12 @@ class Account {
     private Member member;
     private Player player;
 
+    /**
+     * コンストラクタ
+     * @param name アカウントの名前
+     * @param sc アカウントのソケットチャンネル
+     * @param callback クライアント要求コールバック
+     */
     Account(String name, SocketChannel sc, IDaifugoServer callback) {
         this.name = name;
         this.sc = sc;
@@ -184,10 +254,18 @@ class Account {
         connection = new ServerConnection(this.sc);
     }
 
+    /**
+     * アカウントの名前を取得
+     * @return アカウントの名前
+     */
     public String GetName() {
         return name;
     }
 
+    /**
+     * コマンドを読み取り、どのアクタでコマンドを実行するかを決める
+     * @param cmd コマンド
+     */
     public void Select(String[] cmd) {
         String type = cmd[0];
 
@@ -202,6 +280,11 @@ class Account {
         }
     }
 
+    /**
+     * アカウントとしてのアクションを行う
+     * アカウントではアカウント作成、アカウント削除、ロビー作成、ロビー入室が行える
+     * @param cmd コマンド
+     */
     private void Action(String[] cmd) {
         String action = cmd[0];
         if (action.equals(Connection.CREATEACCOUNT)) {
@@ -219,24 +302,44 @@ class Account {
         }
     }
 
+    /**
+     * アカウント作成を行う
+     * <p>大富豪サーバークラスへアカウント作成をコールバックし、クライアントへ其の結果を返す
+     */
     public void CreateAccount() {
-        boolean result = callback.CreateAccount(name, sc);
+        boolean result = callback.onReceiveCreateAccountRequest(name, sc);
         connection.AnswerCreateAccount(result);
     }
 
+    /**
+     * アカウント削除を行う
+     * <p>大富豪サーバークラスへアカウント削除をコールバックするが、クライアントへその結果は返さない
+     */
     public void DeleteAccount() {
-        callback.DeleteAccount(this);
+        callback.onReceiveDeleteAccountRequest(this);
     }
 
+    /**
+     * ロビー作成を行う
+     * <p>大富豪サーバークラスへロビー作成をコールバックし、返ってきた結果をクライアントへ返す
+     * @param lobbyName 作成するロビーの名前
+     */
     public void CreateLobby(String lobbyName) {
-        Lobby lobby = callback.CreateLobby(lobbyName, name, sc);
+        Lobby lobby = callback.onReceiveCreateLobbyRequest(lobbyName, name, sc);
         if (lobby != null) connection.AnswerCreateLobby(true, lobby.getPassword());
         else connection.AnswerCreateLobby(false, null);
         this.member = lobby.get(name);
     }
 
+    /**
+     * ロビー入室を行う
+     * <p>大富豪サーバークラスへロビー入室をコールバックし、返ってきた結果をクライアントへ返す
+     * <p>ロビー入室が承認されたら、結果とロビーの名前、すでに入室しているメンバーの名前/状態を返す
+     * @param lobbyName
+     * @param password
+     */
     public void JoinLobby(String lobbyName, String password) {
-       Lobby lobby = callback.JoinLobby(lobbyName, password, name, sc);
+       Lobby lobby = callback.onReceiveJoinLobbyRequest(lobbyName, password, name, sc);
         if (lobby == null) {
             connection.AnswerJoinLobby(false, null, null);
         }
