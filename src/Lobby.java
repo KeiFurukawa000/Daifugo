@@ -5,39 +5,51 @@ import java.util.UUID;
 
 /**
  * ロビーをまとめるクラス
+ * @author Kei Furukawa
+ * @version 0.0.1
  */
-class LobbyList {
+class LobbyList implements ILobbyList {
     private HashMap<String, Lobby> lobbyList;
     private int maxCount;
 
+    /**
+     * コンストラクタ
+     * @param maxCount ロビーリストに格納できる最大ロビー数
+     */
     LobbyList(int maxCount) {
         lobbyList = new HashMap<>();
         this.maxCount = maxCount;
     }
 
-    private boolean CanAddLobby(String lobbyName) {
-        return !Contains(lobbyName) && lobbyList.size() < maxCount;
-    }
-
-    public boolean Add(Lobby lobby) {
-        if (CanAddLobby(lobby.GetLobbyName())) {
-            lobbyList.put(lobby.GetLobbyName(), lobby);
+    public boolean add(Lobby lobby) {
+        if (canAdd(lobby.getName())) {
+            lobby.setCallback(this);
+            lobbyList.put(lobby.getName(), lobby);
             return true;
         }
         return false;
     }
 
-    public void Remove(String lobbyName) {
-       lobbyList.remove(lobbyName); 
+    private boolean canAdd(String lobbyName) {
+        return !contains(lobbyName) && lobbyList.size() < maxCount;
     }
 
-    public Lobby Get(String lobbyName) {
+    @Override
+    public void remove(String lobbyName) {
+       lobbyList.remove(lobbyName);
+    }
+
+    public Lobby get(String lobbyName) {
         return lobbyList.get(lobbyName);
     }
 
-    private boolean Contains(String lobbyName) {
+    private boolean contains(String lobbyName) {
         return lobbyList.containsKey(lobbyName);
     }
+}
+
+interface ILobbyList {
+    void remove(String lobbyName);
 }
 
 public class Lobby implements ILobby {
@@ -46,9 +58,10 @@ public class Lobby implements ILobby {
     private Member host;
     private HashMap<String, Member> list;
     private LinkedList<Member> members;
+    private ILobbyList lobbyList;
     private Game game;
 
-    private final int maxMemberCount = 5;
+    private final int maxMemberCount = 4;
 
     Lobby(String lobbyName, String hostName, SocketChannel sc) {
         list = new HashMap<>();
@@ -56,72 +69,89 @@ public class Lobby implements ILobby {
 
         this.name = lobbyName;
         this.host = new Member(hostName, true, sc, this);
-        this.host.Ready();
-        this.password = CreatePassword();
+        this.host.ready();
+        this.password = createPassword();
 
-        Add(host);
+        add(host);
     }
 
-    private String CreatePassword() {
+    public void setCallback(ILobbyList lobbyList) {
+        this.lobbyList = lobbyList;
+    }
+
+    private String createPassword() {
         return UUID.randomUUID().toString();
     }
 
-    public String GetLobbyName() {
+    public String getName() {
         return name;
     }
 
-    public String GetPassword() {
+    @Override
+    public String getPassword() {
         return password;
     }
 
-    public boolean CanJoin(String name, String password) {
+    public boolean canJoin(String name, String password) {
         return list.size() < maxMemberCount && !list.containsKey(name) && this.password.equals(password);
     }
 
-    public void Add(Member member) {
-        member.GetConnection().SendJoinMember(member.GetName(), GetMemberArray());
-        list.put(member.GetName(), member);
+    public void add(Member member) {
+        member.getConnection().SendJoinMember(member.getName(), getMembersAsArray());
+        list.put(member.getName(), member);
         members.add(member);
     }
 
-    public void Remove(Member member) {
-       list.remove(member.GetName());
+    public void remove(Member member) {
+       list.remove(member.getName());
        members.remove(member);
     }
 
-    public Member GetMember(String name) {
+    public Member get(String name) {
         return list.get(name);
     }
 
-    public Member GetHost() {
+    public Member getHost() {
         return host;
     }
 
-    public boolean IsAllReady() {
+    public boolean isAllReady() {
         Member[] all = list.values().toArray(new Member[list.size()]);
-        for (int i = 0; i < all.length; i++) if (!all[i].IsReady()) return false;
+        for (int i = 0; i < all.length; i++) if (!all[i].isReady()) return false;
         return true;
     }
 
-    public void StartGame() {
-        
+    public void startGame() {
+        game = new Game(members);
     }
 
     @Override
-    public Member[] GetMemberArray() {
+    public Member[] getMembersAsArray() {
         return members.toArray(new Member[members.size()]);
     }
 
     @Override
-    public void Leave(Member member) {
-        list.remove(member.GetName());
+    public void leave(Member member) {
+        list.remove(member.getName());
         members.remove(member);
+        if (list.size() <= 0) {
+            lobbyList.remove(getName());
+        }
+    }
+
+    @Override
+    public String changeHost() {
+        members.get(0).setHost(true);
+        host = members.get(0);
+        return host.getName();
     }
 }
 
 interface ILobby {
-    Member[] GetMemberArray();
-    void Leave(Member member);
+    Member[] getMembersAsArray();
+    void leave(Member member);
+    String changeHost();
+    String getPassword();
 }
 
 class Member {
@@ -138,50 +168,61 @@ class Member {
         this.callback = callback;
     }
 
-    public boolean IsHost() {
+    public boolean isHost() {
         return isHost;
     }
 
-    public void Action(String[] cmd) {
+    public void setHost(boolean arg) {
+        isHost = arg;
+    }
+
+    public void action(String[] cmd) {
         String action = cmd[0];
         if (action.equals(Connection.LEAVELOBBY)) {
-            LeaveLobby();
+            leave();
         }
         else if (action.equals(Connection.READY)) {
-            Ready();
+            ready();
         }
         else if (action.equals(Connection.UNREADY)) {
-            Unready();
+            unready();
         }
         else if (action.equals(Connection.STARTGAME)) {
             
         }
     }
 
-    public IMemberConnectable GetConnection() {
+    public IMemberConnectable getConnection() {
         return connection;
     }
 
-    private void LeaveLobby() {
-        callback.Leave(this);
-        connection.SendLeaveMember(name, callback.GetMemberArray());
+    private void leave() {
+        callback.leave(this);
+
+        if (isHost) {
+            String nextHost = callback.changeHost();
+            connection.SendChangeHost(name, nextHost, callback.getMembersAsArray(), callback.getPassword());
+        }
+        else {
+            connection.SendLeaveMember(name, callback.getMembersAsArray());    
+        }
     }
 
-    public void Ready() {
+    public void ready() {
         isReady = true;
-        connection.SendReadyMember(name, callback.GetMemberArray());
+        connection.SendReadyMember(name, callback.getMembersAsArray());
     }
 
-    public void Unready() {
+    public void unready() {
         isReady = false;
-        connection.SendUnreadyMember(name, callback.GetMemberArray());
+        connection.SendUnreadyMember(name, callback.getMembersAsArray());
     }
 
-    public boolean IsReady() {
+    public boolean isReady() {
         return isReady;
     }
 
-    public String GetName() {
+    public String getName() {
         return name;
     }
 }

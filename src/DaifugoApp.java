@@ -6,20 +6,40 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+/**
+ * 大富豪アプリケーションクラス
+ * @version 0.0.1
+ * @author Kei Furukawa
+ * <p>
+ * このクラスはメイン関数を含むクラスです
+ * このクラスはJavaFXによるGUIの変更を行います
+ */
 public class DaifugoApp extends Application implements IDaifugoApp {
     private String name;
     private String lobbyName;
-    private Member[] lobbyMember;
     private Stage stage;
     private ClientConnection connection;
     private HostLobbySceneController hostLobbyScenecontroller;
     private GuestLobbySceneController guestLobbyScenecontroller;
     private Thread thread;
 
+    /**
+     * メイン関数
+     * @param args コマンドライン
+     * <p>
+     * JavaFX Applicationクラスのstart関数の呼び出しを行います
+     */
     public static void main(String[] args) {
         launch(args);
     }
 
+    /**
+     * start関数
+     * @param stage
+     * @throws Exception
+     * <p>
+     * JavaFX Applicationの起動を行います
+     */
     @Override
     public void start(Stage stage) throws Exception {
         stage.setTitle("大富豪");
@@ -27,7 +47,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
         String addr = getParameters().getRaw().get(0);
         int port = Integer.parseInt(getParameters().getRaw().get(1));
         connection = new ClientConnection(addr, port, this);
-        thread = new Thread(new ClientListen(connection.GetSocket(), this));
+        thread = new Thread(new ClientListen(connection.getSocket(), this));
         thread.start();
         this.stage = stage;
         ShowStartScene();
@@ -102,14 +122,14 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void ShowHostLobbyScene(String password) {
+    public void ShowHostLobbyScene(String password, String[] members) {
         guestLobbyScenecontroller = null;
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("HostLobbyScene.fxml"));
         Parent root;
         try {
             root = (Parent)fxmlLoader.load();
             hostLobbyScenecontroller = (HostLobbySceneController)fxmlLoader.getController();
-            hostLobbyScenecontroller.SetCallback(this, connection, password);
+            hostLobbyScenecontroller.SetCallback(this, connection, password, members);
             Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.show();
@@ -149,7 +169,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
 
     @Override
     public void RemoveLobbyMember(String name) {
-        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onLeaveGuest(name); 
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onLeaveGuest(name);
         else guestLobbyScenecontroller.onLeaveGuest(name);
     }
 
@@ -165,7 +185,11 @@ public class DaifugoApp extends Application implements IDaifugoApp {
         else guestLobbyScenecontroller.onUnreadyGuest(name);
     }
 
-    
+    @Override
+    public void ChangeHost(String name) {
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onChangeHost(name); 
+        else guestLobbyScenecontroller.onChangeHost(name);
+    }
 }
 
 interface IDaifugoApp {
@@ -177,10 +201,11 @@ interface IDaifugoApp {
     void ShowSelectHostOrJoinScene();
     void ShowCreateLobbyScene();
     void ShowJoinLobbyScene();
-    void ShowHostLobbyScene(String password);
+    void ShowHostLobbyScene(String password, String[] members);
     void ShowGuestLobbyScene(String[] members);
     void AddLobbyMember(String name);
     void RemoveLobbyMember(String name);
     void ReadyLobbyMember(String name);
     void UnreadyLobbyMember(String name);
+    void ChangeHost(String name);
 }

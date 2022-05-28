@@ -30,6 +30,7 @@ public class CreateLobbySceneController {
     @FXML
     void onPressedCreateButton(ActionEvent event) {
         connection.RequestCreateLobby(lobbyNameTextField.getText(), app.GetName());
+        app.SetLobbyName(lobbyNameTextField.getText());
     }
 
 }

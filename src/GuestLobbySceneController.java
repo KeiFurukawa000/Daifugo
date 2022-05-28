@@ -110,6 +110,32 @@ public class GuestLobbySceneController {
         imageView.setVisible(false);
     }
 
+    public void onChangeHost(String name) {
+        Group getter = playerMap.get(name);
+        int index = listview.getItems().indexOf(getter);
+        Group group = listview.getItems().get(index);
+        HBox hbox = (HBox) group.getChildren().get(0);
+
+        Text playerName = (Text)hbox.getChildren().get(0);
+        System.out.println(playerName.getText());
+        Group preGroup = listview.getItems().get(index+1);
+        HBox preBox = (HBox)preGroup.getChildren().get(0);
+        Text preName = (Text)preBox.getChildren().get(0);
+        System.out.println(preName.getText());
+        playerName.setText(preName.getText());
+        System.out.println(playerName.getText());
+
+        ImageView imageView = (ImageView)hbox.getChildren().get(1);
+        imageView.setImage(new Image("/img/host.png"));
+        imageView.setFitWidth(50);
+        imageView.setFitHeight(50);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+
+        listview.getItems().remove(group);
+        listview.getItems().set(0, group);
+    }
+
     @FXML
     void onPressedChatSendButton(ActionEvent event) {
 

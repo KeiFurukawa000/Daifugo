@@ -71,16 +71,28 @@ public class HostLobbySceneController {
     private ILobbyConnectable connection;
     private String password;
     private HashMap<String, Group> playerMap;
+    private String[] members;
 
-    public void SetCallback(IDaifugoApp app, ILobbyConnectable connection, String password) {
+    public void SetCallback(IDaifugoApp app, ILobbyConnectable connection, String password, String[] members) {
         playerMap = new HashMap<>();
 
         this.app = app;
         this.connection = connection;
         this.password = password;
+        this.members = members;
 
         Group group = GetPlayerBox(app.GetName(), "HOST");
         listview.getItems().add(group);
+
+        for (int i = 0; i < members.length; i++) {
+            String[] args = members[i].split("/");
+            String name = args[0];
+            if (name.equals(app.GetName())) continue;
+            String state = args[1];
+            Group childgroup = GetPlayerBox(name, state);
+            listview.getItems().add(childgroup);
+            playerMap.put(name, childgroup);
+        }
 
         chatTextField.appendText(this.password + System.lineSeparator());
     }
@@ -132,6 +144,29 @@ public class HostLobbySceneController {
         imageView.setVisible(false);
     }
 
+    public void onChangeHost(String name) {
+        Group getter = playerMap.get(name);
+        int index = listview.getItems().indexOf(getter);
+        Group group = listview.getItems().get(index);
+        HBox hbox = (HBox) group.getChildren().get(0);
+
+        Text playerName = (Text)hbox.getChildren().get(0);
+        Group preGroup = listview.getItems().get(index+1);
+        HBox preBox = (HBox)group.getChildren().get(0);
+        Text preName = (Text)preBox.getChildren().get(0);
+        playerName.setText(preName.getText());
+
+        ImageView imageView = (ImageView)hbox.getChildren().get(1);
+        imageView.setImage(new Image("/img/host.png"));
+        imageView.setFitWidth(50);
+        imageView.setFitHeight(50);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+
+        listview.getItems().remove(group);
+        listview.getItems().set(0, group);
+    }
+
     @FXML
     void onPressedChatSendButton(ActionEvent event) {
         
@@ -150,6 +185,7 @@ public class HostLobbySceneController {
     @FXML
     void onPressedLeaveButton(ActionEvent event) {
         connection.RequestLeaveLobby(app.GetLobbyName(), app.GetName());
+        app.ShowSelectHostOrJoinScene();
     }
 
     @FXML

@@ -73,6 +73,7 @@ public class DaifugoServer implements IDaifugoServer {
     }
 
     private String[] Read(SocketChannel sc) throws IOException {
+        if (!sc.isConnected()) sc.close();
         reader.clear();
         sc.read(reader);
         reader.flip();
@@ -95,15 +96,15 @@ public class DaifugoServer implements IDaifugoServer {
     @Override
     public Lobby CreateLobby(String lobbyName, String hostName, SocketChannel sc) {
         Lobby newLobby = new Lobby(lobbyName, hostName, sc);
-        boolean result = lobbyList.Add(newLobby);
+        boolean result = lobbyList.add(newLobby);
         return result ? newLobby : null;
     }
 
     @Override
     public Lobby JoinLobby(String lobbyName, String password, String guestName, SocketChannel sc) {
-        Lobby lobby = lobbyList.Get(lobbyName);
-        if (lobby != null && lobby.CanJoin(guestName, password)) {
-            lobby.Add(new Member(guestName, false, sc, lobby));
+        Lobby lobby = lobbyList.get(lobbyName);
+        if (lobby != null && lobby.canJoin(guestName, password)) {
+            lobby.add(new Member(guestName, false, sc, lobby));
             return lobby;
         }
         return null;
@@ -194,7 +195,7 @@ class Account {
             Action(Arrays.copyOfRange(cmd, 1, cmd.length));
         }
         else if (type.equals(Connection.MEMBER)) {
-            member.Action(Arrays.copyOfRange(cmd, 1, cmd.length));
+            if(member != null) member.action(Arrays.copyOfRange(cmd, 1, cmd.length));
         }
         else if (type.equals(Connection.PLAYER)) {
             player.Action(Arrays.copyOfRange(cmd, 1, cmd.length));
@@ -229,7 +230,9 @@ class Account {
 
     public void CreateLobby(String lobbyName) {
         Lobby lobby = callback.CreateLobby(lobbyName, name, sc);
-        connection.AnswerCreateLobby(lobby != null ? true : false, lobby.GetPassword());
+        if (lobby != null) connection.AnswerCreateLobby(true, lobby.getPassword());
+        else connection.AnswerCreateLobby(false, null);
+        this.member = lobby.get(name);
     }
 
     public void JoinLobby(String lobbyName, String password) {
@@ -238,9 +241,9 @@ class Account {
             connection.AnswerJoinLobby(false, null, null);
         }
         else {
-            this.member = lobby.GetMember(name);
-            Member[] members = lobby.GetMemberArray();
-            connection.AnswerJoinLobby(true, lobby.GetLobbyName(), members);
+            this.member = lobby.get(name);
+            Member[] members = lobby.getMembersAsArray();
+            connection.AnswerJoinLobby(true, lobby.getName(), members);
         }
     }
 }
