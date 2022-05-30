@@ -21,17 +21,17 @@ public class SelectHostOrJoinSceneController {
 
     @FXML
     void onPressedBackButton(ActionEvent event) {
-        callback.ShowStartScene();
+        callback.showStartScene();
     }
 
     @FXML
     void onPressedCreateLobbyButton(ActionEvent event) {
-        callback.ShowCreateLobbyScene();
+        callback.showCreateLobbyScene();
     }
 
     @FXML
     void onPressedJoinLobbyButton(ActionEvent event) {
-        callback.ShowJoinLobbyScene();
+        callback.showJoinLobbyScene();
     }
 
 }

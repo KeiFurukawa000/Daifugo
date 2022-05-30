@@ -22,7 +22,7 @@ public class StartSceneController {
     @FXML
     void onPressedStartButton(ActionEvent event) {
         connection.RequestCreateAccount(playerNameTextField.getText());
-        app.SetName(playerNameTextField.getText());
+        app.setName(playerNameTextField.getText());
     }
 }
 

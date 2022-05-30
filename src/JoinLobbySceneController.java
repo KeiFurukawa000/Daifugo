@@ -27,13 +27,13 @@ public class JoinLobbySceneController {
 
     @FXML
     void onPressedBackButton(ActionEvent event) {
-        app.ShowSelectHostOrJoinScene();
+        app.showSelectHostOrJoinScene();
     }
 
     @FXML
     void onPressedJoinButton(ActionEvent event) {
-        connection.RequestJoinLobby(lobbyNameTextField.getText(), passwordTextFiels.getText(), app.GetName());
-        app.SetLobbyName(lobbyNameTextField.getText());
+        connection.RequestJoinLobby(lobbyNameTextField.getText(), passwordTextFiels.getText(), app.getName());
+        app.setLobbyName(lobbyNameTextField.getText());
     }
 
 }
