@@ -82,16 +82,22 @@ public class GuestLobbySceneController {
         return group;
     }
 
+    public void addTextInChat(String text) {
+        chatTextField.appendText(text + System.lineSeparator());
+    }
+
     public void onJoinGuest(String name) {
         Group group = GetPlayerBox(name, "UNREADY");
         listview.getItems().add(group);
         playerMap.put(name, group);
+        addTextInChat(name + " さんが入室しました");
     }
 
     public void onLeaveGuest(String name) {
         Group group = playerMap.get(name);
         listview.getItems().remove(group);
         playerMap.remove(name);
+        addTextInChat(name + " さんが退室しました");
     }
 
     public void onReadyGuest(String name) {
@@ -134,17 +140,20 @@ public class GuestLobbySceneController {
 
         listview.getItems().remove(group);
         listview.getItems().set(0, group);
+
+        addTextInChat(preName.getText() + " さんがホストになりました");
     }
 
     @FXML
     void onPressedChatSendButton(ActionEvent event) {
-
+        connection.SendChat(app.getLobbyName(), app.getName(), chatInputField.getText());
+        chatInputField.clear();
     }
 
     @FXML
     void onPressedLeaveButton(ActionEvent event) {
-        connection.RequestLeaveLobby(app.GetLobbyName(), app.GetName());
-        app.ShowSelectHostOrJoinScene();
+        connection.RequestLeaveLobby(app.getLobbyName(), app.getName());
+        app.showSelectHostOrJoinScene();
     }
 
     @FXML
@@ -155,11 +164,11 @@ public class GuestLobbySceneController {
     @FXML
     void onPressedReadyButton(ActionEvent event) {
         if (!isPressedReady) { 
-            connection.RequestReady(app.GetLobbyName(), app.GetName());
+            connection.RequestReady(app.getLobbyName(), app.getName());
             isPressedReady = true;
         }
         else {
-            connection.RequestUnready(app.GetLobbyName(), app.GetName());
+            connection.RequestUnready(app.getLobbyName(), app.getName());
             isPressedReady = false;
         }
     }
