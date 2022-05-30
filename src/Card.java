@@ -3,8 +3,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Stack;
 
-import javafx.beans.property.ReadOnlyStringPropertyBase;
-
 /** カードの山クラス */
 class CardBlock {
     private Stack<Card> block;
@@ -18,16 +16,22 @@ class CardBlock {
         }};
     }
 
-    public Card Pop() {
+    public Card pop() {
         return block.pop();
     }
 
-    public void Put(Card card) {
+    public void put(Card card) {
         block.push(card);
     }
 
-    public void Shuffle() {
+    public void shuffle() {
         Collections.shuffle(block);
+    }
+
+    public Card[] deal(int num) {
+        Card[] cards = new Card[num];
+        for (int i = 0; i < num; i++) cards[i] = pop();
+        return cards;
     }
 }
 
@@ -39,20 +43,20 @@ class Hand {
         list = new ArrayList<Card>(Arrays.asList(cards));
     }
 
-    public void Remove(Suit suit, int num) {
-        list.remove(GetCard(suit, num));
+    public void remove(Suit suit, int num) {
+        list.remove(getCard(suit, num));
     }
 
-    private Card GetCard(Suit suit, int num) {
+    private Card getCard(Suit suit, int num) {
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).GetSuit().equals(suit) && list.get(i).GetNumber() == num) return list.get(i);
+            if (list.get(i).getSuit().equals(suit) && list.get(i).getNumber() == num) return list.get(i);
         }
         return null;
     }
 
-    public boolean Contains(Suit suit, int num) {
+    public boolean contains(Suit suit, int num) {
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).GetSuit().equals(suit) && list.get(i).GetNumber() == num) return true;
+            if (list.get(i).getSuit().equals(suit) && list.get(i).getNumber() == num) return true;
         }
         return false;
     }
@@ -68,20 +72,56 @@ public class Card {
         this.number = number;
     }
 
-    public Suit GetSuit() {
+    public Suit getSuit() {
         return suit;
     }
 
-    public int GetNumber() {
+    public int getNumber() {
         return number;
+    }
+
+    /**
+     * カード情報を文字列に変換します
+     * @return 文字列に変換されたカード情報 ex) Clover, 5 -> C/5
+     */
+    public String toString() {
+        String s = suit.getName();
+        String n = Integer.toString(number);
+        return s + "/" + n;
+    }
+
+    /**
+     * 文字列をカードに変換します
+     * @param suit 
+     * @param num
+     * @return
+     */
+    public static Card strToCard(String suit, String num) {
+        Suit s = null;
+        switch (suit) {
+            case "H": s = Suit.Heart; break;
+            case "D": s = Suit.Diamond; break;
+            case "C": s = Suit.Clover; break;
+            case "S": s = Suit.Spade; break;
+            case "J": s = Suit.Joker; break;
+        }
+        int n = Integer.parseInt(num);
+        return new Card(s, n);
     }
 }
 
 /** トランプの絵柄 */
 enum Suit {
-    Heart,
-    Diamond,
-    Spade,
-    Clover,
-    Joker
+    Heart("H"),
+    Diamond("D"),
+    Spade("S"),
+    Clover("C"),
+    Joker("J");
+
+    private String name;
+    private Suit(String name) {
+        this.name = name;
+    }
+
+    public String getName() { return name; }
 }
