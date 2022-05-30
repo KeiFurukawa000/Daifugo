@@ -24,13 +24,13 @@ public class CreateLobbySceneController {
 
     @FXML
     void onPressedBackButton(ActionEvent event) {
-        app.ShowSelectHostOrJoinScene();
+        app.showSelectHostOrJoinScene();
     }
 
     @FXML
     void onPressedCreateButton(ActionEvent event) {
-        connection.RequestCreateLobby(lobbyNameTextField.getText(), app.GetName());
-        app.SetLobbyName(lobbyNameTextField.getText());
+        connection.RequestCreateLobby(lobbyNameTextField.getText(), app.getName());
+        app.setLobbyName(lobbyNameTextField.getText());
     }
 
 }
