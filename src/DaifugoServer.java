@@ -1,3 +1,4 @@
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -232,7 +233,7 @@ class AccountList {
     }
 }
 
-class Account {
+class Account implements IAccount {
     private String name;
     private SocketChannel sc;
     private IDaifugoServer callback;
@@ -276,7 +277,7 @@ class Account {
             if(member != null) member.action(Arrays.copyOfRange(cmd, 1, cmd.length));
         }
         else if (type.equals(Connection.PLAYER)) {
-            player.Action(Arrays.copyOfRange(cmd, 1, cmd.length));
+            member.getPlayer().Action(Arrays.copyOfRange(cmd, 1, cmd.length));
         }
     }
 
@@ -300,6 +301,11 @@ class Account {
         else if (action.equals(Connection.JOINLOBBY)) {
             JoinLobby(cmd[1], cmd[2]);
         }
+    }
+
+    @Override
+    public void setPlayer(Player player) {
+        this.player = player;
     }
 
     /**
@@ -326,9 +332,11 @@ class Account {
      */
     public void CreateLobby(String lobbyName) {
         Lobby lobby = callback.onReceiveCreateLobbyRequest(lobbyName, name, sc);
-        if (lobby != null) connection.AnswerCreateLobby(true, lobby.getPassword());
+        if (lobby != null) { 
+            connection.AnswerCreateLobby(true, lobby.getPassword());
+            this.member = lobby.get(name);
+        }
         else connection.AnswerCreateLobby(false, null);
-        this.member = lobby.get(name);
     }
 
     /**
@@ -349,4 +357,8 @@ class Account {
             connection.AnswerJoinLobby(true, lobby.getName(), members);
         }
     }
+}
+
+interface IAccount {
+    void setPlayer(Player player);
 }

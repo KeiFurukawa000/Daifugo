@@ -1,8 +1,7 @@
-import java.util.HashMap;
-import java.util.Queue;
-import java.util.Stack;
 
-import javafx.beans.value.WritableNumberValue;
+
+import java.util.HashMap;
+
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
@@ -13,7 +12,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -54,7 +52,7 @@ public class GuestLobbySceneController {
         this.connection = connection;
 
         for (int i = 0; i < members.length; i++) {
-            String[] args = members[i].split("/");
+            String[] args = members[i].split(",");
             String name = args[0];
             String state = args[1];
             Group group = GetPlayerBox(name, state);

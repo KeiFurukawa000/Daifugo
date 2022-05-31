@@ -1,3 +1,7 @@
+
+
+import java.net.MalformedURLException;
+
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -20,7 +24,7 @@ public class SelectHostOrJoinSceneController {
     }
 
     @FXML
-    void onPressedBackButton(ActionEvent event) {
+    void onPressedBackButton(ActionEvent event) throws MalformedURLException {
         callback.showStartScene();
     }
 

@@ -1,3 +1,4 @@
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -52,6 +53,7 @@ interface IConnectable {
     String CREATELOBBY = "CREATELOBBY";
     String JOINLOBBY = "JOINLOBBY";
     String LEAVELOBBY = "LEAVELOBBY";
+    String GAMEOPTIONS = "GAMEOPTIONS";
     String STARTGAME = "STARTGAME"; 
     String YOURTURN = "YOURTURN";
     String READY = "READY";
@@ -151,6 +153,24 @@ class ClientConnection extends Connection implements IServerConnectable, ILobbyC
         String msg = MakeCommand(memberName, MEMBER, CHAT, content);
         send(msg);
     }
+
+    @Override
+    public void SendGameOptions(String memberName, String lobbyName, String gameCount) {
+        String msg = MakeCommand(memberName, MEMBER, GAMEOPTIONS, gameCount);
+        send(msg);
+    }
+
+    @Override
+    public void RequestPlayerTurn(String lobbyName, String playerName) {
+        String msg = MakeCommand(playerName, PLAYER, PLAYERTURN);
+        send(msg);
+    }
+
+    @Override
+    public void RequestHand(String lobbyName, String playerName) {
+        String msg = MakeCommand(playerName, PLAYER, HAND);
+        send(msg);
+    }
 }
 
 class ClientListen implements Runnable {
@@ -173,8 +193,7 @@ class ClientListen implements Runnable {
                 reader.flip();
                 String msg = StandardCharsets.UTF_8.decode(reader).toString();
                 Read(msg);
-                Thread.sleep(100);
-            } catch (IOException | InterruptedException e) { }
+            } catch (IOException e) { }
         }
     }
 
@@ -212,7 +231,6 @@ class ClientListen implements Runnable {
                 callback.unreadyLobbyMember(unreadyName);
             }
             else if (cmd[0].equals(Connection.CHANGEHOST)) {
-                String leaveHost = cmd[1];
                 String nextHost = cmd[2];
                 String password = cmd[3];
                 String[] members = Arrays.copyOfRange(cmd, 4, cmd.length);
@@ -231,38 +249,37 @@ class ClientListen implements Runnable {
                 String content = String.join(" ", contentArray);
                 callback.addChatText(cmd[1], content);
             }
+            else if (cmd[0].equals(Connection.STARTGAME)) {
+                try {
+                    callback.loadGameScene();
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+            else if (cmd[0].equals(Connection.PLAYERTURN)) {
+                String[] array = Arrays.copyOfRange(cmd, 1, cmd.length);
+                String content = String .join(" ", array);
+                try {
+                    callback.setPlayerTurn(content);
+                } catch (InterruptedException e) {}
+            }
+            else if (cmd[0].equals(Connection.HAND)) {
+                String[] array = Arrays.copyOfRange(cmd, 1, cmd.length);
+                String content = String.join(" ", array);
+                try {
+                    callback.setHand(content);
+                } catch (IOException e) { e.printStackTrace(); }
+            }
+            else if (cmd[0].equals(Connection.STAGE)) {
+                String[] array = Arrays.copyOfRange(cmd, 1, cmd.length);
+                String content = String.join(" ", array);
+                callback.setStage(content);
+            }
         });
-
     }
 }
 
-interface IServerConnectable {
-    /**
-     * アカウント作成をサーバーへ要求する
-     * @param name 作成するアカウント名
-     * @apiNote name ACCOUNT CREATEACCOUNT 
-     */
-    void RequestCreateAccount(String name);
-
-    /**
-     * アカウントの削除をサーバーへ要求する
-     * @param name 削除するアカウント名
-     * @apiNote name ACCOUNT DELETEACCOUNT
-     */
-    void RequestDeleteAccount(String name);
-}
-
-interface ILobbyConnectable {
-    void RequestCreateLobby(String lobbyName, String hostName);
-    void RequestJoinLobby(String lobbyName, String password, String guestName);
-    void RequestLeaveLobby(String lobbyName, String memberName);
-    void RequestReady(String lobbyName, String memberName);
-    void RequestUnready(String lobbyName, String memberName);
-    void RequestStartGame(String lobbyName, String memberName);
-    void SendChat(String lobbyName, String memberName, String content);
-}
-
 interface IGameConnectable {
+    void RequestPlayerTurn(String lobbyName, String playerName);
+    void RequestHand(String lobbyName, String playerName);
     void RequestPut(String lobbyName, String playerName, Card[] cards);
     void RequestPass(String lobbyName, String playerName);
     void RequestWin(String lobbyName, String playerName);
@@ -295,7 +312,7 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
                 String name = joinedMember[i].getName();
                 boolean isHost = joinedMember[i].isHost();
                 boolean isReady = joinedMember[i].isReady();
-                infos[i] = name + "/" + (isHost ? "HOST" : (isReady ? "READY" : "UNREADY"));
+                infos[i] = name + "," + (isHost ? "HOST" : (isReady ? "READY" : "UNREADY"));
             }
             String infosStr = MakeCommand(infos);
             System.out.println("DEBUG: " + infosStr);
@@ -339,7 +356,7 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
         for (int i = 0; i < members.length; i++) {
             String name = members[i].getName();
             String state = members[i].isHost() ? "HOST" : (members[i].isReady() ? "READY" : "UNREADY");
-            infos[i] = name + "/" + state;
+            infos[i] = name + "," + state;
         }
         String names = MakeCommand(infos);
         String msg = MakeCommand(CHANGEHOST, leaveHost, nextHost, password, names);
@@ -350,7 +367,7 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
     @Override
     public void SendStartGame(Member[] members) {
         String msg = STARTGAME;
-        for (int i = 0; i < members.length; i++) send(msg, members[i].getConnection().getSocket());
+        send(msg);
     }
 
     public void SendStartGame(Player[] players) {
@@ -361,9 +378,9 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
     @Override
     public void SendPlayerTurn(Player[] players) {
         String[] playersStr = new String[players.length];
-        for (int i = 0; i < players.length; i++) playersStr[i] = players[i].GetName() + players[i].getCardCount();
+        for (int i = 0; i < players.length; i++) playersStr[i] = players[i].GetName() + "," + players[i].getCardCount();
         String msg = MakeCommand(PLAYERTURN, MakeCommand(playersStr));
-        for (int i = 0; i < players.length; i++) send(msg, players[i].getConnection().getSocket());
+        send(msg);
     }
 
     @Override

@@ -1,8 +1,7 @@
+
+
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Stack;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -44,7 +43,7 @@ public class HostLobbySceneController {
     private ILobbyConnectable connection;
     private String password;
     private HashMap<String, Group> playerMap;
-    private String[] members;
+    private int readyCount = 1;
 
     /**
      * 初期化を行う
@@ -59,13 +58,12 @@ public class HostLobbySceneController {
         this.app = app;
         this.connection = connection;
         this.password = password;
-        this.members = members;
 
         Group group = GetPlayerBox(app.getName(), "HOST");
         listview.getItems().add(group);
 
         for (int i = 0; i < members.length; i++) {
-            String[] args = members[i].split("/");
+            String[] args = members[i].split(",");
             String name = args[0];
             if (name.equals(app.getName())) continue;
             String state = args[1];
@@ -120,6 +118,8 @@ public class HostLobbySceneController {
         HBox hbox = (HBox) group.getChildren().get(0);
         ImageView imageView = (ImageView)hbox.getChildren().get(1);
         imageView.setVisible(true);
+        readyCount++;
+        if (readyCount == 4) gameStartButton.setDisable(false);
     }
 
     public void onUnreadyGuest(String name) {
@@ -128,6 +128,8 @@ public class HostLobbySceneController {
         HBox hbox = (HBox) group.getChildren().get(0);
         ImageView imageView = (ImageView)hbox.getChildren().get(1);
         imageView.setVisible(false);
+        readyCount--;
+        gameStartButton.setDisable(true);
     }
 
     public void onChangeHost(String name) {
@@ -167,6 +169,7 @@ public class HostLobbySceneController {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("GameOptionsPopup.fxml"));
         Parent root = fxmlLoader.load();
         GameOptionsPopupController controller = (GameOptionsPopupController)fxmlLoader.getController();
+        controller.init(app, connection);
         Scene scene = new Scene(root);
         stage.setScene(scene);
         stage.show();

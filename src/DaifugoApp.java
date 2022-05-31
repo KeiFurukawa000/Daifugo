@@ -1,4 +1,6 @@
+
 import java.io.IOException;
+import java.net.MalformedURLException;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -21,6 +23,8 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     private ClientConnection connection;
     private HostLobbySceneController hostLobbyScenecontroller;
     private GuestLobbySceneController guestLobbyScenecontroller;
+    private GameSceneController gameSceneController;
+    private Scene gameScene;
     private Thread thread;
 
     /**
@@ -38,11 +42,12 @@ public class DaifugoApp extends Application implements IDaifugoApp {
      * @param stage
      * @throws Exception
      * <p>
-     * JavaFX Applicationの起動を行います
+     * JavaFX Applicationの起動を行う
      */
     @Override
     public void start(Stage stage) throws Exception {
         stage.setTitle("大富豪");
+        stage.setResizable(false);
 
         String addr = getParameters().getRaw().get(0);
         int port = Integer.parseInt(getParameters().getRaw().get(1));
@@ -65,7 +70,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void showStartScene() {
+    public void showStartScene() throws MalformedURLException {
         if (name != null && (!name.isEmpty() || !name.isBlank())) connection.RequestDeleteAccount(name);
 
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("StartScene.fxml"));
@@ -130,7 +135,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
         try {
             root = (Parent)fxmlLoader.load();
             hostLobbyScenecontroller = (HostLobbySceneController)fxmlLoader.getController();
-            hostLobbyScenecontroller.SetCallback(this, connection, password, members);
+            hostLobbyScenecontroller.Init(this, connection, password, members);
             Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.show();
@@ -191,6 +196,51 @@ public class DaifugoApp extends Application implements IDaifugoApp {
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onChangeHost(name); 
         else guestLobbyScenecontroller.onChangeHost(name);
     }
+
+    @Override
+    public void addChatText(String sender, String content) {
+        String text = sender + ": " + content;
+        if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.addTextInChat(text);
+        else guestLobbyScenecontroller.addTextInChat(text);
+    }
+
+    @Override
+    public void loadGameScene() throws IOException, InterruptedException {
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("GameScene.fxml"));
+        Parent root = (Parent)fxmlLoader.load();
+        gameScene = new Scene(root);
+        gameSceneController = fxmlLoader.getController();
+        gameSceneController.init(stage, this, connection);
+        connection.RequestPlayerTurn(lobbyName, name);
+    }
+
+    @Override
+    public void showGameScene() throws IOException {
+        stage.setScene(gameScene);
+        gameSceneController.start();
+        stage.show();
+    }
+    
+    @Override
+    public void setPlayerTurn(String content) throws InterruptedException {
+        String[] players = content.split(" ");
+        gameSceneController.setQueue(players);
+        Thread.sleep(100);
+        connection.RequestHand(lobbyName, name);
+    }
+
+    @Override
+    public void setHand(String content) throws IOException {
+        String[] handArray = content.split(" ");
+        gameSceneController.setMyPlayerHand(handArray);
+        showGameScene();
+    }
+
+    @Override
+    public void setStage(String content) {
+        String[] stageArray = content.split(" ");
+        gameSceneController.setStage(stageArray);
+    }
 }
 
 interface IDaifugoApp {
@@ -218,8 +268,9 @@ interface IDaifugoApp {
      */
     String getLobbyName();
 
-    /** スタート画面の表示 */
-    void showStartScene();
+    /** スタート画面の表示 
+     * @throws MalformedURLException*/
+    void showStartScene() throws MalformedURLException;
 
     /** ロビー作成/入室 選択画面の表示 */
     void showSelectHostOrJoinScene();
@@ -250,4 +301,16 @@ interface IDaifugoApp {
 
     /** ホストを変更する */
     void changeHost(String name);
+
+    void addChatText(String sender, String content);
+
+    void loadGameScene() throws IOException, InterruptedException;
+
+    void setPlayerTurn(String content) throws InterruptedException;
+
+    void setHand(String content) throws IOException;
+
+    void setStage(String content);
+
+    void showGameScene() throws Exception;
 }

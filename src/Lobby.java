@@ -1,4 +1,6 @@
+
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.UUID;
@@ -59,7 +61,9 @@ public class Lobby implements ILobby {
     private HashMap<String, Member> list;
     private LinkedList<Member> members;
     private ILobbyList lobbyList;
+
     private Game game;
+    private int gameCount = 3;
 
     private final int maxMemberCount = 4;
 
@@ -121,8 +125,10 @@ public class Lobby implements ILobby {
         return true;
     }
 
-    public void startGame() {
-        game = new Game(members);
+    @Override
+    public Player startGame(String name) {
+        game = new Game(members, gameCount);
+        return game.GetParty().getPlayer(name);
     }
 
     @Override
@@ -141,9 +147,15 @@ public class Lobby implements ILobby {
 
     @Override
     public String changeHost() {
+        if (members.isEmpty()) return null;
         members.get(0).setHost(true);
         host = members.get(0);
         return host.getName();
+    }
+
+    @Override
+    public void setGameOptions(int gameCount) {
+        this.gameCount = gameCount;
     }
 }
 
@@ -152,6 +164,8 @@ interface ILobby {
     void leave(Member member);
     String changeHost();
     String getPassword();
+    void setGameOptions(int gameCount);
+    Player startGame(String name);
 }
 
 class Member {
@@ -160,6 +174,7 @@ class Member {
     private boolean isReady;
     private IMemberConnectable connection;
     private ILobby callback;
+    private Player player;
 
     Member(String name, boolean isHost, SocketChannel sc, ILobby callback) {
         this.name = name;
@@ -188,12 +203,34 @@ class Member {
             unready();
         }
         else if (action.equals(Connection.STARTGAME)) {
-            
+            this.player = callback.startGame(name);
         }
+        else if (action.equals(Connection.CHAT)) {
+            String[] contentArray = Arrays.copyOfRange(cmd, 1, cmd.length);
+            String content = String.join(" ", contentArray);
+            chat(content);
+        }
+        else if (action.equals(Connection.GAMEOPTIONS)) {
+            int gameCount = Integer.parseInt(cmd[1]);
+            setGameOptions(gameCount);
+        }
+    }
+
+    public void setPlayer(Player player) {
+        this.player = player;
+    }
+
+    public Player getPlayer() {
+        return player;
     }
 
     public IMemberConnectable getConnection() {
         return connection;
+    }
+
+    private void setGameOptions(int gameCount) {
+        callback.setGameOptions(gameCount);
+        connection.SendChat(name, "ゲーム回数を " + gameCount + " に変更しました", callback.getMembersAsArray());
     }
 
     private void leave() {
@@ -224,5 +261,9 @@ class Member {
 
     public String getName() {
         return name;
+    }
+
+    public void chat(String content) {
+        connection.SendChat(name, content, callback.getMembersAsArray());
     }
 }

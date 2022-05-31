@@ -1,3 +1,5 @@
+
+
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -17,9 +19,17 @@ public class GameOptionsPopupController {
     @FXML
     private Text gameCountText;
 
+    private ILobbyConnectable lobby;
+    private IDaifugoApp app;
+
+    public void init(IDaifugoApp app, ILobbyConnectable lobby) {
+        this.app = app;
+        this.lobby = lobby;
+    }
+
     @FXML
     void onPressedAcceptButton(ActionEvent event) {
-
+        lobby.SendGameOptions(app.getName(), app.getLobbyName(), gameCountText.getText());
     }
 
     private void setButtonEnable(boolean b1, boolean b2, boolean b3, boolean b4) {

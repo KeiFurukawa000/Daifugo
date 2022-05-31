@@ -27,7 +27,7 @@
                         <Insets bottom="10.0" />
                      </VBox.margin>
                   </ListView>
-                  <Button fx:id="gameStartButton" focusTraversable="false" mnemonicParsing="false" onAction="#onPressedGameStartButton" prefHeight="26.0" prefWidth="326.0" text="ゲーム開始">
+                  <Button fx:id="gameStartButton" disable="true" focusTraversable="false" mnemonicParsing="false" onAction="#onPressedGameStartButton" prefHeight="26.0" prefWidth="326.0" text="ゲーム開始">
                      <VBox.margin>
                         <Insets bottom="5.0" />
                      </VBox.margin>
