@@ -1,6 +1,7 @@
 
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javafx.event.ActionEvent;
@@ -52,7 +53,7 @@ public class HostLobbySceneController {
      * @param password ロビーのパスワード
      * @param members すでに入室しているメンバーの名前, ホスト交代時に使用
      */
-    public void Init(IDaifugoApp app, ILobbyConnectable connection, String password, String[] members) {
+    public void Init(IDaifugoApp app, ILobbyConnectable connection, String password, ArrayList<String> members) {
         playerMap = new HashMap<>();
 
         this.app = app;
@@ -62,14 +63,20 @@ public class HostLobbySceneController {
         Group group = GetPlayerBox(app.getName(), "HOST");
         listview.getItems().add(group);
 
-        for (int i = 0; i < members.length; i++) {
-            String[] args = members[i].split(",");
+        for (int i = 0; i < members.size(); i++) {
+            String[] args = members.get(i).split(",");
             String name = args[0];
             if (name.equals(app.getName())) continue;
-            String state = args[1];
-            Group childgroup = GetPlayerBox(name, state);
-            listview.getItems().add(childgroup);
-            playerMap.put(name, childgroup);
+            Group childGroup = null;
+            if (args.length < 2) {
+                childGroup = GetPlayerBox(name, Connection.UNREADY);
+            }
+            else {
+                String state = args[1];
+                childGroup = GetPlayerBox(name, state);
+            }
+            listview.getItems().add(childGroup);
+            playerMap.put(name, childGroup);
         }
 
         addTextInChat("パスワード: " + this.password);

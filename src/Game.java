@@ -1,52 +1,75 @@
 
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class Game implements IGame {
+    private LinkedList<Member> members;
     private Party party;
+    private Party turn;
     private CardBlock cardBlock;
     private Card[] stage;
-    private Timer timer;
+    private int passCount;
     private Party winners;
-    private int currentGameCount;
+    private int currentGameCount = 1;
     private int maxGameCount;
 
-    Game(LinkedList<Member> members, int maxGameCount) {
+    Game(LinkedList<Member> members, int maxGameCount) throws InterruptedException {
         this.maxGameCount = maxGameCount;
+        this.members = members;
 
         cardBlock = new CardBlock();
         cardBlock.shuffle();
 
-        party = new Party(members, this);
+        party = new Party();
+        turn = new Party();
+        winners = new Party();
         for (int i = 0; i < members.size(); i++) {
             Player player = new Player(members.get(i).getName(), members.get(i).getConnection().getSocket(),
-             this, party, i != 3 ? cardBlock.deal(13) : cardBlock.deal(14));
+             this, turn, i != 3 ? cardBlock.deal(13) : cardBlock.deal(14));
             members.get(i).setPlayer(player);
             party.add(player);
+            turn.add(player);
         }
-
+        
         Player[] players = party.getPlayersAsArray();
         for (int i = 0; i < players.length; i++) {
-            players[i].getConnection().SendStartGame(members.toArray(new Member[members.size()]));
+            players[i].getConnection().SendStartGame(members.toArray(new Member[members.size()]), currentGameCount, maxGameCount);
         }
-
-        startTurn();
+    
+        Thread.sleep(1000);
+        turn.getNowPlayer().getConnection().SendYourTurn(turn.getNowPlayer());
     }
 
     public void startTurn() {
-        Player player = party.getNowPlayer();
-        Task task = new Task(player);
-        timer = new Timer();
-        timer.schedule(task, 60000);
+        turn.getNowPlayer().getConnection().SendYourTurn(turn.getNowPlayer());
+    }
+
+    public void addPassCount() {
+        passCount++;
+    }
+
+    public boolean isAllPlayerPassed() {
+        if (passCount >= turn.size()-1) {
+            passCount = 0;
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void endTurn() {
-        timer.cancel();
+        turn.rotate();
         party.rotate();
-        startTurn();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if (party.size()-1 == winners.size()) return;
+        else startTurn();
     }
 
     @Override
@@ -63,42 +86,62 @@ public class Game implements IGame {
         return party;
     }
 
+    @Override
     public void Win(Player player) {
         winners.add(player);
-        if (party.size() == winners.size()) ReGame();
+        turn.remove(player);
+        if (party.size()-1 == winners.size()) {
+            winners.add(turn.getNowPlayer());
+            ReGame();
+        }
     }
 
     public void ReGame() {
         currentGameCount++;
-        if (currentGameCount >= maxGameCount) FinishGame();
+        if (currentGameCount > maxGameCount) FinishGame();
         else {
-            Player[] nextParty = winners.getPlayersAsArray();
-            CardBlock cardBlock = new CardBlock();
+            cardBlock = new CardBlock();
             cardBlock.shuffle();
+    
+            party = new Party();
+            turn = new Party();
+            Player[] players = winners.getPlayersAsArray();
             for (int i = 0; i < winners.size(); i++) {
-                nextParty[i].getConnection().SendStartGame(nextParty);
-                nextParty[i].setCards(i == 3 ? cardBlock.deal(13) : cardBlock.deal(14));
+                players[i].setCards(i != 3 ? cardBlock.deal(13) : cardBlock.deal(14));
+                players[i].setTurn(turn);
+                party.add(players[i]);
+                turn.add(players[i]);
             }
-            party = winners;
+            
+            for (int i = 0; i < players.length; i++) {
+                players[i].getConnection().SendStartGame(players, currentGameCount, maxGameCount);
+            }
+        
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            turn.getNowPlayer().getConnection().SendYourTurn(turn.getNowPlayer());
             winners.removeAll();
         }
     }
 
     public void FinishGame() {
-
-    }
-}
-
-class Task extends TimerTask {
-    private Player player;
-
-    Task(Player player) {
-        this.player = player;
+        Player[] players = party.getPlayersAsArray();
+        for (int i = 0; i < players.length; i++) {
+            players[i].getConnection().SendEndGame();
+        }
     }
 
     @Override
-    public void run() {
-        player.Pass();
+    public Party getParty() {
+        return party;
+    }
+
+    @Override
+    public void ResetPassCount() {
+        passCount = 0;
     }
 }
 
@@ -106,13 +149,22 @@ interface IGame {
     void setStage(Card[] cards);
     Card[] getStage();
     void endTurn();
+    Party getParty();
+    void Win(Player player);
+    void addPassCount();
+    boolean isAllPlayerPassed();
+    void ResetPassCount();
 }
 
 class Party implements IParty {
     private LinkedList<Player> queue;
 
-    Party(LinkedList<Member> members, IGame callback) {
+    Party() {
         queue = new LinkedList<>();
+    }
+
+    public Party clone() {
+        return (Party) queue.clone();
     }
 
     public void add(Player player) {
@@ -133,7 +185,7 @@ class Party implements IParty {
     }
 
     public Player getNowPlayer() {
-        return queue.getFirst();
+        return queue.peek();
     }
 
     public Player getPlayer(String name) {
@@ -162,15 +214,9 @@ class Party implements IParty {
     public int size() {
         return queue.size();
     }
-
-    @Override
-    public void onWin() {
-        queue.pop();
-    }
 }
 
 interface IParty {
-    void onWin();
     Player[] getPlayersAsArray();
     Player[] getAnotherPlayers();
 }
@@ -190,6 +236,10 @@ class Player {
         this.cards = cards;
     }
 
+    public void setTurn(IParty turn) {
+        this.party = turn;
+    }
+
     public Card[] getCards() {
         return cards;
     }
@@ -206,10 +256,6 @@ class Player {
         return cards.length;
     }
 
-    public void startTurn() {
-        ipc.SendYourTurn(this);
-    }
-
     public void Action(String[] cmd) {
         String action = cmd[0];
         if (action.equals(Connection.PLAYERTURN)) {
@@ -218,21 +264,55 @@ class Player {
         else if (action.equals(Connection.HAND)) {
             ipc.SendHand(cards);
         }
+        else if (action.equals(Connection.PUT)) {
+            String[] cardsStr = Arrays.copyOfRange(cmd, 1, cmd.length);
+            if (cmd[1].equals("NONE")) Pass();
+            else {
+                Card[] cards = new Card[cardsStr.length];
+                for (int i = 0; i < cards.length; i++) {
+                    String[] meta = cardsStr[i].split(",");
+                    String suit = meta[0];
+                    String num = meta[1];
+                    cards[i] = Card.strToCard(suit, num);
+                }
+                Put(cards);
+            }
+        }
+        else if (action.equals(Connection.WIN)) {
+            Win();
+        }
     }
 
     public void Put(Card[] cards) {
-        ipc.SendStage(party.getAnotherPlayers(), cards);
-        game.setStage(cards);
+        game.ResetPassCount();
+        for (int i = 0; i < cards.length; i++) {
+            if (!cards[i].equalsNum(8)) {
+                game.setStage(cards);
+                ipc.SendStage(game.getParty().getPlayersAsArray(), cards);
+                game.endTurn();
+                return;
+            }
+        }
+        game.setStage(new Card[0]);
+        ipc.SendStage(game.getParty().getPlayersAsArray(), new Card[0]);
         game.endTurn();
+        return;
     }
 
     public void Pass() {
-        ipc.SendStage(party.getAnotherPlayers(), game.getStage());
+        game.addPassCount();
+        if (game.isAllPlayerPassed()) {
+            ipc.SendStage(game.getParty().getPlayersAsArray(), new Card[0]);
+            game.setStage(new Card[0]);
+        }
+        else {
+            ipc.SendStage(game.getParty().getPlayersAsArray(), null);
+        }
         game.endTurn();
     }
 
     public void Win() {
-        party.onWin();
+        game.Win(this);
     }
 
     public IPlayerConnectable getConnection() {

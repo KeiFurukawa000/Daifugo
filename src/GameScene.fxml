@@ -7,6 +7,8 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" fx:controller="GameSceneController">
    <bottom>
@@ -14,7 +16,17 @@
          <children>
             <StackPane alignment="BOTTOM_CENTER" prefWidth="2.0">
                <children>
-                  <Group fx:id="myGroup" />
+                  <Group fx:id="myGroup" disable="true" />
+                  <Text fx:id="gameCountText" strokeType="OUTSIDE" strokeWidth="0.0" text="GAME 1 / 3" textAlignment="RIGHT" wrappingWidth="570.21630859375">
+                     <font>
+                        <Font size="10.0" />
+                     </font>
+                  </Text>
+                  <Text fx:id="myAgariText" fill="WHITE" stroke="RED" strokeType="OUTSIDE" strokeWidth="2.0" text="上がり" translateY="-30.0" visible="false" wrappingWidth="90.0">
+                     <font>
+                        <Font size="30.0" />
+                     </font>
+                  </Text>
                </children>
             </StackPane>
          </children>
@@ -28,6 +40,11 @@
                   <Group fx:id="leftGroup" />
                </children>
             </StackPane>
+            <Text fx:id="leftAgariText" fill="WHITE" stroke="RED" strokeType="OUTSIDE" strokeWidth="2.0" text="上がり" translateX="40.0" translateY="-60.0" visible="false" wrappingWidth="90.0">
+               <font>
+                  <Font size="30.0" />
+               </font>
+            </Text>
          </children>
       </VBox>
    </left>
@@ -39,6 +56,11 @@
                   <Group fx:id="rightGroup" />
                </children>
             </StackPane>
+            <Text fx:id="rightArariText" fill="WHITE" stroke="RED" strokeType="OUTSIDE" strokeWidth="2.0" text="上がり" translateX="-20.0" translateY="-60.0" visible="false" wrappingWidth="90.0">
+               <font>
+                  <Font size="30.0" />
+               </font>
+            </Text>
          </children>
       </VBox>
    </right>
@@ -47,6 +69,11 @@
          <children>
             <StackPane alignment="TOP_CENTER" prefHeight="150.0" prefWidth="600.0">
                <children>
+                  <Text fx:id="topAgariText" fill="WHITE" stroke="RED" strokeType="OUTSIDE" strokeWidth="2.0" text="上がり" translateY="30.0" visible="false" wrappingWidth="90.0">
+                     <font>
+                        <Font size="30.0" />
+                     </font>
+                  </Text>
                   <Group fx:id="topGroup" />
                </children>
             </StackPane>
@@ -66,8 +93,8 @@
             </StackPane>
             <HBox alignment="CENTER" prefHeight="35.0" prefWidth="340.0" spacing="40.0">
                <children>
-                  <Button fx:id="passButton" mnemonicParsing="false" onAction="#onPressedPassButton" text="パス" />
-                  <Button fx:id="putButton" mnemonicParsing="false" onAction="#onPressedPutButton" text="出す" />
+                  <Button fx:id="passButton" disable="true" mnemonicParsing="false" onAction="#onPressedPassButton" text="パス" />
+                  <Button fx:id="putButton" disable="true" mnemonicParsing="false" onAction="#onPressedPutButton" text="出す" />
                </children>
                <opaqueInsets>
                   <Insets />

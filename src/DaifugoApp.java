@@ -1,6 +1,7 @@
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -25,6 +26,9 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     private GuestLobbySceneController guestLobbyScenecontroller;
     private GameSceneController gameSceneController;
     private Scene gameScene;
+    private ArrayList<String> currentLobbyMembers;
+    private boolean isHost;
+    private String password;
     private Thread thread;
 
     /**
@@ -128,8 +132,11 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void showHostLobbyScene(String password, String[] members) {
+    public void showHostLobbyScene(String password, ArrayList<String> members) {
         guestLobbyScenecontroller = null;
+        this.password = password;
+        this.currentLobbyMembers = members;
+        this.isHost = true;
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("HostLobbyScene.fxml"));
         Parent root;
         try {
@@ -143,8 +150,10 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void showGuestLobbyScene(String[] members) {
+    public void showGuestLobbyScene(ArrayList<String> members) {
         hostLobbyScenecontroller = null;
+        this.currentLobbyMembers = members;
+        this.isHost = false;
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("GuestLobbyScene.fxml"));
         Parent root;
         try {
@@ -169,12 +178,14 @@ public class DaifugoApp extends Application implements IDaifugoApp {
 
     @Override
     public void addLobbyMember(String name) {
+        currentLobbyMembers.add(name);
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onJoinGuest(name);
         else guestLobbyScenecontroller.onJoinGuest(name);
     }
 
     @Override
     public void removeLobbyMember(String name) {
+        currentLobbyMembers.remove(name);
         if (hostLobbyScenecontroller != null) hostLobbyScenecontroller.onLeaveGuest(name);
         else guestLobbyScenecontroller.onLeaveGuest(name);
     }
@@ -205,12 +216,12 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     }
 
     @Override
-    public void loadGameScene() throws IOException, InterruptedException {
+    public void loadGameScene(int currentGameCount, int maxGameCount) throws IOException, InterruptedException {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("GameScene.fxml"));
         Parent root = (Parent)fxmlLoader.load();
         gameScene = new Scene(root);
         gameSceneController = fxmlLoader.getController();
-        gameSceneController.init(stage, this, connection);
+        gameSceneController.init(stage, this, connection, currentGameCount, maxGameCount);
         connection.RequestPlayerTurn(lobbyName, name);
     }
 
@@ -219,6 +230,7 @@ public class DaifugoApp extends Application implements IDaifugoApp {
         stage.setScene(gameScene);
         gameSceneController.start();
         stage.show();
+
     }
     
     @Override
@@ -240,6 +252,26 @@ public class DaifugoApp extends Application implements IDaifugoApp {
     public void setStage(String content) {
         String[] stageArray = content.split(" ");
         gameSceneController.setStage(stageArray);
+    }
+
+    @Override
+    public void setMyTurn() {
+        gameSceneController.startMyTurn();
+    }
+
+    @Override
+    public boolean isHost() {
+        return isHost;
+    }
+
+    @Override
+    public ArrayList<String> getCurrentLobbyMembers() {
+        return currentLobbyMembers;
+    }
+
+    @Override
+    public String getCurrentLobbyPassword() {
+        return password;
     }
 }
 
@@ -282,10 +314,10 @@ interface IDaifugoApp {
     void showJoinLobbyScene();
 
     /** ホストとしてのロビー画面の表示 */
-    void showHostLobbyScene(String password, String[] members);
+    void showHostLobbyScene(String password, ArrayList<String> members);
 
     /** ゲストとしてのロビー画面の表示 */
-    void showGuestLobbyScene(String[] members);
+    void showGuestLobbyScene(ArrayList<String> members);
 
     /** ロビー画面にメンバーを追加する */
     void addLobbyMember(String name);
@@ -304,7 +336,7 @@ interface IDaifugoApp {
 
     void addChatText(String sender, String content);
 
-    void loadGameScene() throws IOException, InterruptedException;
+    void loadGameScene(int currentGameCount, int maxGameCount) throws IOException, InterruptedException;
 
     void setPlayerTurn(String content) throws InterruptedException;
 
@@ -312,5 +344,15 @@ interface IDaifugoApp {
 
     void setStage(String content);
 
+    void setMyTurn();
+
     void showGameScene() throws Exception;
+
+    boolean isHost();
+
+    ArrayList<String> getCurrentLobbyMembers();
+
+    String getCurrentLobbyPassword();
+
+
 }

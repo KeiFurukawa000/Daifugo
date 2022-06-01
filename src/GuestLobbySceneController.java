@@ -1,5 +1,6 @@
 
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javafx.event.ActionEvent;
@@ -45,17 +46,23 @@ public class GuestLobbySceneController {
     private ILobbyConnectable connection;
     private HashMap<String, Group> playerMap;
 
-    public void Init(IDaifugoApp app, ILobbyConnectable connection, String[] members) {
+    public void Init(IDaifugoApp app, ILobbyConnectable connection, ArrayList<String> members) {
         playerMap = new HashMap<>();
 
         this.app = app;
         this.connection = connection;
 
-        for (int i = 0; i < members.length; i++) {
-            String[] args = members[i].split(",");
+        for (int i = 0; i < members.size(); i++) {
+            String[] args = members.get(i).split(",");
+            Group group;
             String name = args[0];
-            String state = args[1];
-            Group group = GetPlayerBox(name, state);
+            if (args.length < 2) {
+                group = GetPlayerBox(name, Connection.UNREADY);
+            }
+            else {
+                String state = args[1];
+                group = GetPlayerBox(name, state);
+            }
             listview.getItems().add(group);
             playerMap.put(name, group);
         }

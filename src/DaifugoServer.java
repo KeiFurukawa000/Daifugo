@@ -27,8 +27,9 @@ public class DaifugoServer implements IDaifugoServer {
      * @param args IPアドレス ポート番号 ex) localhost 8765
      * @throws NumberFormatException
      * @throws IOException
+     * @throws InterruptedException
      */
-    public static void main(String[] args) throws NumberFormatException, IOException {
+    public static void main(String[] args) throws NumberFormatException, IOException, InterruptedException {
         System.out.println("Server has been launched.");
         DaifugoServer server = new DaifugoServer(12);
         server.Open(args[0], Integer.parseInt(args[1]));
@@ -64,8 +65,9 @@ public class DaifugoServer implements IDaifugoServer {
     /**
      * クライアント送信の読み取り
      * @throws IOException
+     * @throws InterruptedException
      */
-    public void Listen() throws IOException {
+    public void Listen() throws IOException, InterruptedException {
         while (socket.isOpen()) {
             while (selector.selectNow() > 0) {
                 Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
@@ -76,6 +78,7 @@ public class DaifugoServer implements IDaifugoServer {
                     else if (key.isReadable()) {
                         SocketChannel sc = (SocketChannel)key.channel();
                         String[] cmd = Read(sc);
+                        System.out.println("Read: " + String.join(" ", cmd));
                         String accountName = cmd[0];
                         Account account = accountList.Get(accountName);
                         if (account == null) {
@@ -266,8 +269,9 @@ class Account implements IAccount {
     /**
      * コマンドを読み取り、どのアクタでコマンドを実行するかを決める
      * @param cmd コマンド
+     * @throws InterruptedException
      */
-    public void Select(String[] cmd) {
+    public void Select(String[] cmd) throws InterruptedException {
         String type = cmd[0];
 
         if (type.equals(Connection.ACCOUNT)) {

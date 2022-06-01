@@ -24,6 +24,10 @@ public class Card {
         return imageURL;
     }
 
+    public boolean equalsNum(int num) {
+        return number == num;
+    }
+
     /**
      * カード情報を文字列に変換します
      * @return 文字列に変換されたカード情報 ex) Clover, 5 -> C/5

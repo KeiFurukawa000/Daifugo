@@ -126,7 +126,7 @@ public class Lobby implements ILobby {
     }
 
     @Override
-    public Player startGame(String name) {
+    public Player startGame(String name) throws InterruptedException {
         game = new Game(members, gameCount);
         return game.GetParty().getPlayer(name);
     }
@@ -165,7 +165,7 @@ interface ILobby {
     String changeHost();
     String getPassword();
     void setGameOptions(int gameCount);
-    Player startGame(String name);
+    Player startGame(String name) throws InterruptedException;
 }
 
 class Member {
@@ -191,7 +191,7 @@ class Member {
         isHost = arg;
     }
 
-    public void action(String[] cmd) {
+    public void action(String[] cmd) throws InterruptedException {
         String action = cmd[0];
         if (action.equals(Connection.LEAVELOBBY)) {
             leave();

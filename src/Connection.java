@@ -1,9 +1,11 @@
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import javafx.application.Platform;
@@ -129,16 +131,22 @@ class ClientConnection extends Connection implements IServerConnectable, ILobbyC
     /** Implements of IGameConnectable */
     @Override
     public void RequestPut(String lobbyName, String playerName, Card[] cards) {
-        String[] css = new String[cards.length];
-        for (int i = 0; i < css.length; i++) css[i] = cards[i].toString();
-        String cs = MakeCommand(css);
-        String msg = MakeCommand(playerName, PLAYER, PUT, lobbyName, playerName, cs);
+        String cs = "";
+        if (cards != null) {
+            String[] css = new String[cards.length];
+            for (int i = 0; i < css.length; i++) css[i] = cards[i].toString();
+            cs = MakeCommand(css);
+        }
+        else {
+            cs = "NONE";
+        }
+        String msg = MakeCommand(playerName, PLAYER, PUT, cs);
         send(msg);
     }
 
     @Override
     public void RequestPass(String lobbyName, String playerName) {
-        String msg = MakeCommand(playerName, PLAYER, PUT, lobbyName, playerName, "NONE");
+        String msg = MakeCommand(playerName, PLAYER, PUT, "NONE");
         send(msg);
     }
 
@@ -206,12 +214,12 @@ class ClientListen implements Runnable {
             }
             else if (cmd[0].equals(Connection.CREATELOBBY)) {
                 String[] members = Arrays.copyOfRange(cmd, 3, cmd.length);
-                if (cmd[1].equals(Connection.OK)) callback.showHostLobbyScene(cmd[2], members);
+                if (cmd[1].equals(Connection.OK)) callback.showHostLobbyScene(cmd[2], new ArrayList<>(Arrays.asList(members)));
             }
             else if (cmd[0].equals(Connection.JOINLOBBY)) {
                 if (cmd[1].equals(Connection.OK)) {
                     String[] members = Arrays.copyOfRange(cmd, 2, cmd.length);
-                    callback.showGuestLobbyScene(members);
+                    callback.showGuestLobbyScene(new ArrayList<>(Arrays.asList(members)));
                 }
                 else if (cmd[1].equals(Connection.FAULT)) {
 
@@ -235,10 +243,10 @@ class ClientListen implements Runnable {
                 String password = cmd[3];
                 String[] members = Arrays.copyOfRange(cmd, 4, cmd.length);
                 if (nextHost.equals(callback.getName())) {
-                    callback.showHostLobbyScene(password, members);
+                    callback.showHostLobbyScene(password, new ArrayList<>(Arrays.asList(members)));
                 }
                 else {
-                    callback.showGuestLobbyScene(members);
+                    callback.showGuestLobbyScene(new ArrayList<>(Arrays.asList(members)));
                 }
             }
             else if (cmd[0].equals(Connection.LEAVELOBBY)) {
@@ -251,7 +259,7 @@ class ClientListen implements Runnable {
             }
             else if (cmd[0].equals(Connection.STARTGAME)) {
                 try {
-                    callback.loadGameScene();
+                    callback.loadGameScene(Integer.parseInt(cmd[1]), Integer.parseInt(cmd[2]));
                 } catch (Exception e) { e.printStackTrace(); }
             }
             else if (cmd[0].equals(Connection.PLAYERTURN)) {
@@ -272,6 +280,17 @@ class ClientListen implements Runnable {
                 String[] array = Arrays.copyOfRange(cmd, 1, cmd.length);
                 String content = String.join(" ", array);
                 callback.setStage(content);
+            }
+            else if (cmd[0].equals(Connection.YOURTURN)) {
+                callback.setMyTurn();
+            }
+            else if (cmd[0].equals(Connection.ENDGAME)) {
+                if (callback.isHost()) {
+                    callback.showHostLobbyScene(callback.getCurrentLobbyPassword(), callback.getCurrentLobbyMembers());
+                }
+                else {
+                    callback.showGuestLobbyScene(callback.getCurrentLobbyMembers());
+                }
             }
         });
     }
@@ -365,14 +384,14 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
     
     /** Implements of IPlayerConnectable */
     @Override
-    public void SendStartGame(Member[] members) {
-        String msg = STARTGAME;
+    public void SendStartGame(Member[] members, int currentGameCount, int maxGameCount) {
+        String msg = MakeCommand(STARTGAME, Integer.toString(currentGameCount), Integer.toString(maxGameCount));
         send(msg);
     }
 
-    public void SendStartGame(Player[] players) {
-        String msg = STARTGAME;
-        for (int i = 0; i < players.length; i++) send(msg, players[i].getConnection().getSocket());
+    public void SendStartGame(Player[] players, int currentGameCount, int maxGameCount) {
+        String msg = MakeCommand(STARTGAME, Integer.toString(currentGameCount), Integer.toString(maxGameCount));
+        send(msg);
     }
 
     @Override
@@ -401,16 +420,26 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
 
     @Override
     public void SendStage(Player[] players, Card[] cards) {
-        String[] css = new String[cards.length];
-        for (int i = 0; i < css.length; i++) css[i] = cards[i].toString();
-        String cs = MakeCommand(css);
-        String msg = MakeCommand(STAGE, cs);
+        String msg;
+        if (cards == null) {
+            msg = MakeCommand(STAGE, "NONE");
+        }
+        else if (cards.length == 0) {
+            msg = MakeCommand(STAGE, "CLEAR");
+        }
+        else {
+            String[] css = new String[cards.length];
+            for (int i = 0; i < css.length; i++) css[i] = cards[i].toString();
+            String cs = MakeCommand(css);
+            msg = MakeCommand(STAGE, cs);
+        }
         for (int i = 0; i < players.length; i++) send(msg, players[i].getConnection().getSocket());
     }
 
     @Override
     public void SendEndGame() {
-        
+        String msg = MakeCommand(ENDGAME);
+        send(msg);
     }
 
     @Override
@@ -441,8 +470,8 @@ interface IMemberConnectable extends IConnectable {
 }
 
 interface IPlayerConnectable extends IConnectable {
-    void SendStartGame(Member[] members);
-    void SendStartGame(Player[] players);
+    void SendStartGame(Member[] members, int currentGameCount, int maxGameCount);
+    void SendStartGame(Player[] players, int currentGameCount, int maxGameCount);
     void SendPlayerTurn(Player[] players);
     void SendHand(Card[] cards);
     void SendYourTurn(Player player);
