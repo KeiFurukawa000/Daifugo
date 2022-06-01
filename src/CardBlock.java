@@ -9,10 +9,10 @@ public class CardBlock {
 
     public CardBlock() {
         block = new Stack<>(){{
-            for (int i = 1; i <= 13; i++) push(new Card(Suit.Heart, i, "img/card_heart_" + i + ".png"));
-            for (int i = 1; i <= 13; i++) push(new Card(Suit.Diamond, i, "img/card_diamond_" + i + ".png"));
-            for (int i = 1; i <= 13; i++) push(new Card(Suit.Spade, i, "img/card_spade_" + i + ".png"));
-            for (int i = 1; i <= 13; i++) push(new Card(Suit.Clover, i, "img/card_club_" + i + ".png"));
+            for (int i = 3; i <= 15; i++) push(new Card(Suit.Heart, i, "img/card_heart_" + i + ".png"));
+            for (int i = 3; i <= 15; i++) push(new Card(Suit.Diamond, i, "img/card_diamond_" + i + ".png"));
+            for (int i = 3; i <= 15; i++) push(new Card(Suit.Spade, i, "img/card_spade_" + i + ".png"));
+            for (int i = 3; i <= 15; i++) push(new Card(Suit.Clover, i, "img/card_club_" + i + ".png"));
             push(new Card(Suit.Joker, 0, "img/card_joker.png"));
         }};
         System.out.println(block.size());

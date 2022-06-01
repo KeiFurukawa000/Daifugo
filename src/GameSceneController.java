@@ -176,8 +176,10 @@ public class GameSceneController {
         selectedCards.clear();
         putButton.setDisable(true);
         drawMyHand();
-        drawStage(removeCards);
-        connection.RequestPut(app.getLobbyName(), app.getName(), removeCards);
+        ArrayList<Card> sortedCards = new ArrayList<>(Arrays.asList(removeCards));
+        sortedCards.sort(Comparator.comparing(Card::getNumber));
+        drawStage(sortedCards.toArray(new Card[sortedCards.size()]));
+        connection.RequestPut(app.getLobbyName(), app.getName(), sortedCards.toArray(new Card[sortedCards.size()]));
         endMyTurn();
     }
 
@@ -358,7 +360,7 @@ public class GameSceneController {
         stageGroup.getChildren().clear();
         stage = new ArrayList<>(Arrays.asList(cards));
         Comparator<Card> cardComparator =
-            Comparator.comparing(Card::getSuit).thenComparing(Card::getNumber);
+            Comparator.comparing(Card::getNumber);
         stage.sort(cardComparator);
 
         ImageView[] images = new ImageView[cards.length];

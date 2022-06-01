@@ -16,7 +16,7 @@
          <children>
             <StackPane alignment="BOTTOM_CENTER" prefWidth="2.0">
                <children>
-                  <Group fx:id="myGroup" disable="true" />
+                  <Group fx:id="myGroup" disable="true" opacity="0.5" />
                   <Text fx:id="gameCountText" strokeType="OUTSIDE" strokeWidth="0.0" text="GAME 1 / 3" textAlignment="RIGHT" wrappingWidth="570.21630859375">
                      <font>
                         <Font size="10.0" />
