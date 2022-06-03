@@ -27,7 +27,7 @@ public class Game implements IGame {
         winners = new Party();
         for (int i = 0; i < members.size(); i++) {
             Player player = new Player(members.get(i).getName(), members.get(i).getConnection().getSocket(),
-             this, turn, i != 3 ? cardBlock.deal(13) : cardBlock.deal(14));
+             this, turn, cardBlock.deal(13));
             members.get(i).setPlayer(player);
             party.add(player);
             turn.add(player);
@@ -59,13 +59,15 @@ public class Game implements IGame {
     }
 
     @Override
-    public void endTurn() {
-        turn.rotate();
-        party.rotate();
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    public void endTurn(boolean rotate) {
+        if (rotate) {
+            turn.rotate();
+            party.rotate();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         if (party.size()-1 == winners.size()) return;
@@ -107,7 +109,7 @@ public class Game implements IGame {
             turn = new Party();
             Player[] players = winners.getPlayersAsArray();
             for (int i = 0; i < winners.size(); i++) {
-                players[i].setCards(i != 3 ? cardBlock.deal(13) : cardBlock.deal(14));
+                players[i].setCards(cardBlock.deal(13));
                 players[i].setTurn(turn);
                 party.add(players[i]);
                 turn.add(players[i]);
@@ -148,7 +150,7 @@ public class Game implements IGame {
 interface IGame {
     void setStage(Card[] cards);
     Card[] getStage();
-    void endTurn();
+    void endTurn(boolean rotate);
     Party getParty();
     void Win(Player player);
     void addPassCount();
@@ -288,27 +290,26 @@ class Player {
         for (int i = 0; i < cards.length; i++) {
             if (!cards[i].equalsNum(8)) {
                 game.setStage(cards);
-                ipc.SendStage(game.getParty().getPlayersAsArray(), cards);
-                game.endTurn();
+                ipc.SendStage(game.getParty().getPlayersAsArray(), cards, cards.length);
+                game.endTurn(true);
                 return;
             }
         }
         game.setStage(new Card[0]);
-        ipc.SendStage(game.getParty().getPlayersAsArray(), new Card[0]);
-        game.endTurn();
-        return;
+        ipc.SendStage(game.getParty().getPlayersAsArray(), new Card[0], cards.length);
+        game.endTurn(false);
     }
 
     public void Pass() {
         game.addPassCount();
         if (game.isAllPlayerPassed()) {
-            ipc.SendStage(game.getParty().getPlayersAsArray(), new Card[0]);
+            ipc.SendStage(game.getParty().getPlayersAsArray(), new Card[0], 0);
             game.setStage(new Card[0]);
         }
         else {
-            ipc.SendStage(game.getParty().getPlayersAsArray(), null);
+            ipc.SendStage(game.getParty().getPlayersAsArray(), null, 0);
         }
-        game.endTurn();
+        game.endTurn(true);
     }
 
     public void Win() {

@@ -119,7 +119,7 @@ public class DaifugoServer implements IDaifugoServer {
     /** Implements of IDaifugoServer */
     @Override
     public boolean onReceiveCreateAccountRequest(String name, SocketChannel sc) {
-        if (name.isEmpty() && name.isBlank()) return false;
+        if (name.isEmpty() || name.isBlank() || name.contains(",")) return false;
         boolean result = accountList.Add(new Account(name, sc, this));
         return result;
     }
@@ -131,6 +131,7 @@ public class DaifugoServer implements IDaifugoServer {
 
     @Override
     public Lobby onReceiveCreateLobbyRequest(String lobbyName, String hostName, SocketChannel sc) {
+        if (lobbyName.isEmpty() || lobbyName.isBlank() || lobbyName.contains(",")) return null;
         Lobby newLobby = new Lobby(lobbyName, hostName, sc);
         boolean result = lobbyList.add(newLobby);
         return result ? newLobby : null;

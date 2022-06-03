@@ -16,7 +16,6 @@ import javafx.scene.control.Button;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.input.RotateEvent;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
@@ -32,6 +31,8 @@ public class GameSceneController {
     private ClientConnection connection;
 
     private ArrayList<Card> stage;
+    private LinkedList<Integer> selectedCardIndexList;
+    private LinkedList<Card> selectedCardList;
 
     @FXML
     private Group myGroup;
@@ -62,6 +63,9 @@ public class GameSceneController {
         this.app = app;
         this.connection = connection;
         queue = new LinkedList<>();
+        this.stage = new ArrayList<>();
+        selectedCardIndexList = new LinkedList<>();
+        selectedCardList = new LinkedList<>();
         handGroupMap = new HashMap<>(){{
             put(Pos.MY, myGroup);
             put(Pos.LEFT, leftGroup);
@@ -174,7 +178,11 @@ public class GameSceneController {
         }
 
         selectedCards.clear();
+        selectedCardsIndex.clear();
+        selectedCardList.clear();
+        selectedCardIndexList.clear();
         putButton.setDisable(true);
+
         drawMyHand();
         ArrayList<Card> sortedCards = new ArrayList<>(Arrays.asList(removeCards));
         sortedCards.sort(Comparator.comparing(Card::getNumber));
@@ -187,6 +195,14 @@ public class GameSceneController {
         passButton.setDisable(false);
         myGroup.setDisable(false);
         myGroup.setOpacity(1);
+        
+        //drawMyHand();
+        /*
+        ArrayList<Integer> selectableIndex = getSelectableCardIndex();
+        for (int i = 0; i < selectableIndex.size(); i++) {
+            myGroup.getChildren().get(selectableIndex.get(i)).setDisable(false);;
+        }
+        */
     }
 
     public void endMyTurn() {
@@ -194,6 +210,7 @@ public class GameSceneController {
         putButton.setDisable(true);
         myGroup.setDisable(true);
         myGroup.setOpacity(0.5);
+        selectedCardIndexList.clear();
         
         if (myPlayer.hand.getSize() == 0) {
             try {
@@ -212,41 +229,24 @@ public class GameSceneController {
         }
     }
 
-    private boolean canPutCard() {
-        if (selectedCards.size() <= 0) return false;
-
-        ArrayList<Integer> selectedIndex = new ArrayList<>(selectedCards.values());
-        Collections.sort(selectedIndex);
-        ArrayList<Card> selected = new ArrayList<>();
-        for (int i = 0; i < selectedIndex.size(); i++) {
-            selected.add(myPlayer.hand.getCard(selectedIndex.get(i)));
-        }
-
-        if (selected.size() == stage.size()) return false;
-        else if (selected.get(0).getNumber() <= stage.get(0).getNumber()) return false;
-        
-        ArrayList<Integer> numbers = new ArrayList<>();
-        for (int i = 0; i < selected.size(); i++) {
-            numbers.add(selected.get(i).getNumber());
-        }
-        // 数字がすべて等しい場合
-        if (numbers.stream().allMatch(numbers.get(0)::equals)) {
-            return true;
-        }
-        // 階段の場合
-        else {
-            ArrayList<Suit> suits = new ArrayList<>();
-            for (int i = 0; i < selected.size(); i++) {
-                suits.add(selected.get(i).getSuit());
+    private ArrayList<Integer> getSelectableCardIndex() {
+        ArrayList<Integer> selectableIndex = new ArrayList<>();
+        if (stage.isEmpty()) {
+            System.out.println("Empty");
+            for (int i = 0; i < myPlayer.hand.getSize(); i++) {
+                selectableIndex.add(i);
             }
-            if (!suits.stream().allMatch(suits.get(0)::equals)) return false;
-            for (int i = 1; i < numbers.size(); i++) {
-                if (numbers.get(i-1) == numbers.get(i)-1) continue;
-                else return false;
-            }
-            return true;
+            return selectableIndex;
         }
-        
+        Card lastCard = stage.get(stage.size()-1);
+        for (int i = 0; i < myPlayer.hand.getList().size(); i++) {
+            int num = myPlayer.hand.getList().get(i).getNumber();
+            if (lastCard.getNumber() < num) {
+                selectableIndex.add(i);
+                System.out.println(i);
+            }
+        }
+        return selectableIndex;
     }
 
     private void drawMyHand() {
@@ -265,7 +265,54 @@ public class GameSceneController {
             imageView.setLayoutX(20*i);
             EventHandler<MouseEvent> mouseEnteredHandler = (event) -> {
                 if (selectedCards.containsKey(imageView)) return;
-                imageView.setTranslateY(-10);
+
+                Card enteredCard = myPlayer.hand.getCard(myGroup.getChildren().indexOf(imageView));
+                int enteredCardNum = enteredCard.getNumber();
+                
+                if (!stage.isEmpty() && selectedCards.size() >= stage.size()) return;
+                if (selectedCards.isEmpty()) {
+                    if (stage.isEmpty()) {
+                        imageView.setTranslateY(-10);
+                    }
+                    else {
+                        int stageLastNum = stage.get(stage.size()-1).getNumber();
+                        if (enteredCardNum > stageLastNum) imageView.setTranslateY(-10);
+                    }
+                }
+                else {
+                    Suit enteredCardSuit = enteredCard.getSuit();
+                    if (selectedCards.size() == 1) {
+                        Card selectedCard = selectedCardList.peekFirst();
+                        int selectedCardNum = selectedCard.getNumber();
+                        Suit selectedCardSuit = selectedCard.getSuit();
+                        if (stage.isEmpty()) {
+                            if (selectedCardNum == enteredCardNum || (selectedCardNum + 1 == enteredCardNum && selectedCardSuit.equals(enteredCardSuit))) imageView.setTranslateY(-10);
+                            return;
+                        }
+                        ArrayList<Integer> stageNumList = new ArrayList<>();
+                        for (int j = 0; j < stage.size(); j++) stageNumList.add(stage.get(j).getNumber());
+                        if (stageNumList.stream().allMatch(stageNumList.get(0)::equals)) {
+                            if (selectedCardNum == enteredCardNum) imageView.setTranslateY(-10);
+                        }
+                        else {
+                            if (selectedCardNum + 1 == enteredCardNum && selectedCardSuit.equals(enteredCardSuit)) imageView.setTranslateY(-10);
+                        }
+                    }
+                    else {
+                        Card selectedCard = selectedCardList.peekLast();
+                        int selectedCardNum = selectedCard.getNumber();
+                        Suit selectedCardSuit = selectedCard.getSuit();
+                        ArrayList<Integer> selectedCardNumList = new ArrayList<>();
+                        for (int j = 0; j < selectedCardList.size(); j++) selectedCardNumList.add(selectedCardList.get(j).getNumber());
+                        if (selectedCardNumList.stream().allMatch(selectedCardNumList.get(0)::equals)) {
+                            if (selectedCardNum == enteredCardNum) imageView.setTranslateY(-10);
+                        }
+                        else {
+                            if (selectedCardNum + 1 == enteredCardNum && selectedCardSuit.equals(enteredCardSuit)) imageView.setTranslateY(-10);
+                        }
+                    }
+                }
+
                 if (selectedCards.size() == myGroup.getChildren().size()-1) myGroup.setTranslateY(-10);
             };
             imageView.setOnMouseEntered(mouseEnteredHandler);
@@ -275,18 +322,158 @@ public class GameSceneController {
                 myGroup.setTranslateY(0);
             };
             imageView.setOnMouseExited(mouseExitedHandler);
+            /*
             EventHandler<MouseEvent> mouseClickedHandler = (event) -> {
-                if (selectedCards.containsKey(imageView)) { 
+                if (selectedCards.containsKey(imageView)) {
                     imageView.setTranslateY(0);
                     selectedCards.remove(imageView);
                     myGroup.setTranslateY(0);
+                    selectedCardIndexList.remove(myGroup.getChildren().indexOf(imageView));
                     if (selectedCards.size() == 0) putButton.setDisable(true);
                 }
                 else {
                     imageView.setTranslateY(-10);
                     selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                    selectedCardIndexList.add(myGroup.getChildren().indexOf(imageView));
                     putButton.setDisable(false);
                     if (selectedCards.size() == myGroup.getChildren().size()) myGroup.setTranslateY(-10);
+                }
+            };
+            */
+            EventHandler<MouseEvent> mouseClickedHandler = (event) -> {
+                Card clickedCard = myPlayer.hand.getCard(myGroup.getChildren().indexOf(imageView));
+                int clickedCardNum = clickedCard.getNumber();
+                if (!selectedCards.containsKey(imageView)) {             
+                    if (!stage.isEmpty() && selectedCards.size() >= stage.size()) return;
+                    if (selectedCards.isEmpty()) {
+                        if (stage.isEmpty()) {
+                            imageView.setTranslateY(-10);
+                            selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                            selectedCardList.add(clickedCard);
+                            putButton.setDisable(false);
+                        }
+                        else {
+                            int stageLastNum = stage.get(stage.size()-1).getNumber();
+                            if (clickedCardNum > stageLastNum) {
+                                imageView.setTranslateY(-10);
+                                selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                                selectedCardList.add(clickedCard);
+                                if (stage.size() == 1) putButton.setDisable(false);
+                            }
+                        }
+                    }
+                    else {
+                        Suit enteredCardSuit = clickedCard.getSuit();
+                        if (selectedCards.size() == 1) {
+                            Card selectedCard = selectedCardList.peekFirst();
+                            int selectedCardNum = selectedCard.getNumber();
+                            Suit selectedCardSuit = selectedCard.getSuit();
+
+                            if (stage.isEmpty()) {
+                                if (selectedCardNum == clickedCardNum || (selectedCardNum + 1 == clickedCardNum && selectedCardSuit.equals(enteredCardSuit))) {
+                                    imageView.setTranslateY(-10);
+                                    selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                                    selectedCardList.add(clickedCard);
+                                }
+
+                                ArrayList<Integer> selectedCardNumList = new ArrayList<>();
+                                for (int j = 0; j < selectedCardList.size(); j++) selectedCardNumList.add(selectedCardList.get(j).getNumber());
+                                if (selectedCardNumList.stream().allMatch(selectedCardNumList.get(0)::equals)) {
+                                    putButton.setDisable(false);
+                                }
+                                else {
+                                    if (selectedCards.size() >= 3) putButton.setDisable(false);
+                                    else putButton.setDisable(true);
+                                }
+                                return;
+                            }
+                            ArrayList<Integer> stageNumList = new ArrayList<>();
+                            for (int j = 0; j < stage.size(); j++) stageNumList.add(stage.get(j).getNumber());
+                            if (stageNumList.stream().allMatch(stageNumList.get(0)::equals)) {
+                                if (selectedCardNum == clickedCardNum) {
+                                    imageView.setTranslateY(-10);
+                                    selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                                    selectedCardList.add(clickedCard);
+                                }
+                            }
+                            else {
+                                if (selectedCardNum + 1 == clickedCardNum && selectedCardSuit.equals(enteredCardSuit)) {
+                                    imageView.setTranslateY(-10);
+                                    selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                                    selectedCardList.add(clickedCard);
+                                }
+                            }
+                        }
+                        else {
+                            Card selectedCard = selectedCardList.peekLast();
+                            int selectedCardNum = selectedCard.getNumber();
+                            Suit selectedCardSuit = selectedCard.getSuit();
+                            ArrayList<Integer> selectedCardNumList = new ArrayList<>();
+                            for (int j = 0; j < selectedCardList.size(); j++) selectedCardNumList.add(selectedCardList.get(j).getNumber());
+                            if (selectedCardNumList.stream().allMatch(selectedCardNumList.get(0)::equals)) {
+                                if (selectedCardNum == clickedCardNum) {
+                                    imageView.setTranslateY(-10);
+                                    selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                                    selectedCardList.add(clickedCard);
+                                }
+                            }
+                            else {
+                                if (selectedCardNum + 1 == clickedCardNum && selectedCardSuit.equals(enteredCardSuit)) {
+                                    imageView.setTranslateY(-10);
+                                    selectedCards.put(imageView, myGroup.getChildren().indexOf(imageView));
+                                    selectedCardList.add(clickedCard);
+                                }
+                            }
+                        }
+
+                        ArrayList<Integer> selectedCardNumList = new ArrayList<>();
+                        for (int j = 0; j < selectedCardList.size(); j++) selectedCardNumList.add(selectedCardList.get(j).getNumber());
+                        if (stage.isEmpty()) {
+                            if (selectedCardNumList.stream().allMatch(selectedCardNumList.get(0)::equals)) {
+                                putButton.setDisable(false);
+                            }
+                            else {
+                                if (selectedCards.size() >= 3) putButton.setDisable(false);
+                                else putButton.setDisable(true);
+                            }
+                        }
+                        else {
+                            if (selectedCards.size() >= stage.size()) putButton.setDisable(false);
+                        }
+                        //if (stage.isEmpty() || selectedCards.size() == stage.size()) putButton.setDisable(false);
+                    }
+                    if (selectedCards.size() == myGroup.getChildren().size()) myGroup.setTranslateY(-10);
+                    
+                }
+                else {
+                    imageView.setTranslateY(0);
+                    myGroup.setTranslateY(0);
+
+                    selectedCards.remove(imageView);
+                    selectedCardList.remove(clickedCard);
+                
+                    if (stage.isEmpty()) {
+                        if (selectedCards.isEmpty()) {
+                            putButton.setDisable(true);
+                        }
+                        else {
+                            if (selectedCards.size() == 1) {
+                                putButton.setDisable(false);
+                                return;
+                            }
+                            ArrayList<Integer> selectedCardNumList = new ArrayList<>();
+                            for (int j = 0; j < selectedCardList.size(); j++) selectedCardNumList.add(selectedCardList.get(j).getNumber());
+                            if (selectedCardNumList.stream().allMatch(selectedCardNumList.get(0)::equals)) {
+                                return;
+                            }
+                            else {
+                                if (selectedCards.size() < 3) putButton.setDisable(true);
+                            }
+                        }
+                    }
+                    else {
+                        if (selectedCards.size() < stage.size()) putButton.setDisable(true);
+                    }
                 }
             };
             imageView.setOnMouseClicked(mouseClickedHandler);
@@ -336,24 +523,35 @@ public class GameSceneController {
         }
         else if (stageArray[0].equals("CLEAR")) {
             drawStage(new Card[0]);
-            rotate();
+            queue.peek().handCount -= Integer.parseInt(stageArray[1]);
+            drawHand(queue.peek());
+            if (queue.peek().handCount == 0) {
+                win(queue.peek());
+                return;
+            }
+            else if (Integer.parseInt(stageArray[1]) == 0) {
+                rotate();
+            }
         }
         else {
-            Card[] cards = new Card[stageArray.length];
+            Card[] cards = new Card[stageArray.length-1];
+            System.out.println(cards.length);
             for (int i = 0; i < cards.length; i++) {
                 String[] meta = stageArray[i].split(",");
                 String suit = meta[0];
                 String num = meta[1];
+                System.out.println(suit + " " + num);
                 cards[i] = Card.strToCard(suit, num);
             }
             
             drawStage(cards);
             
-            queue.peek().handCount -= stageArray.length;
+            queue.peek().handCount -= Integer.parseInt(stageArray[stageArray.length-1]);
             drawHand(queue.peek());
             if (queue.peek().handCount == 0) win(queue.peek());
             else rotate();
         }
+        drawMyHand();
     }
 
     public void drawStage(Card[] cards) {

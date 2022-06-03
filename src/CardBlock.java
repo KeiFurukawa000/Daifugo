@@ -13,7 +13,7 @@ public class CardBlock {
             for (int i = 3; i <= 15; i++) push(new Card(Suit.Diamond, i, "img/card_diamond_" + i + ".png"));
             for (int i = 3; i <= 15; i++) push(new Card(Suit.Spade, i, "img/card_spade_" + i + ".png"));
             for (int i = 3; i <= 15; i++) push(new Card(Suit.Clover, i, "img/card_club_" + i + ".png"));
-            push(new Card(Suit.Joker, 0, "img/card_joker.png"));
+            //push(new Card(Suit.Joker, 0, "img/card_joker.png"));
         }};
         System.out.println(block.size());
     }

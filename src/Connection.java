@@ -419,19 +419,19 @@ class ServerConnection extends Connection implements IClientConnectable, IMember
     }
 
     @Override
-    public void SendStage(Player[] players, Card[] cards) {
+    public void SendStage(Player[] players, Card[] cards, int length) {
         String msg;
         if (cards == null) {
-            msg = MakeCommand(STAGE, "NONE");
+            msg = MakeCommand(STAGE, "NONE", Integer.toString(length));
         }
         else if (cards.length == 0) {
-            msg = MakeCommand(STAGE, "CLEAR");
+            msg = MakeCommand(STAGE, "CLEAR", Integer.toString(length));
         }
         else {
             String[] css = new String[cards.length];
             for (int i = 0; i < css.length; i++) css[i] = cards[i].toString();
             String cs = MakeCommand(css);
-            msg = MakeCommand(STAGE, cs);
+            msg = MakeCommand(STAGE, cs, Integer.toString(length));
         }
         for (int i = 0; i < players.length; i++) send(msg, players[i].getConnection().getSocket());
     }
@@ -475,7 +475,7 @@ interface IPlayerConnectable extends IConnectable {
     void SendPlayerTurn(Player[] players);
     void SendHand(Card[] cards);
     void SendYourTurn(Player player);
-    void SendStage(Player[] players, Card[] cards);
+    void SendStage(Player[] players, Card[] cards, int length);
     void SendEndGame();
     void SendFinishGame();
 }

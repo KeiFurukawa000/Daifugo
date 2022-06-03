@@ -8,7 +8,6 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
 
-
 <VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" fx:controller="JoinLobbySceneController">
    <padding>
       <Insets bottom="80.0" left="80.0" right="80.0" top="80.0" />
@@ -22,7 +21,7 @@
             <Insets bottom="40.0" />
          </VBox.margin>
       </Text>
-      <TextField fx:id="lobbyNameTextField" promptText="ロビー名">
+      <TextField fx:id="lobbyNameTextField" focusTraversable="false" promptText="ロビー名">
          <font>
             <Font size="26.0" />
          </font>
@@ -30,7 +29,7 @@
             <Insets bottom="20.0" />
          </VBox.margin>
       </TextField>
-      <TextField fx:id="passwordTextFiels" layoutX="90.0" layoutY="121.0" promptText="パスワード">
+      <TextField fx:id="passwordTextFiels" focusTraversable="false" layoutX="90.0" layoutY="121.0" promptText="パスワード">
          <font>
             <Font size="26.0" />
          </font>

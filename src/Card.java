@@ -3,7 +3,7 @@
 /** カードクラス */
 public class Card {
     private Suit suit;
-    private int number;
+    private Integer number;
     private String imageURL;
 
     Card(Suit suit, int number, String imageURL) {
@@ -16,7 +16,7 @@ public class Card {
         return suit;
     }
 
-    public int getNumber() {
+    public Integer getNumber() {
         return number;
     }
 

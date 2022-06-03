@@ -52,4 +52,8 @@ public class Hand {
     public int getSize() {
         return list.size();
     }
+
+    public ArrayList<Card> getList() {
+        return list;
+    }
 }
